@@ -551,7 +551,7 @@ fn get_task_tx() -> &'static std::sync::mpsc::Sender<LispTask> {
                             global_bridge.lock().unwrap().reset_stream();
                             LISP_OUTPUT_BUFFER.lock().unwrap().clear();
                             crate::context::set_worker_tx(Some(worker_tx));
-                            let res = match std::fs::read_to_string(&path) {
+                            let res = match read_lsp_text(&path) {
                                 Ok(content) => {
                                     let eval_res = eval_str(&content, &mut env)
                                         .map(|_| ())
@@ -4363,7 +4363,7 @@ pub fn auto_load_lisp_scripts(host: &mut dyn HostApi) -> usize {
                 }
                 let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
                 if ext.eq_ignore_ascii_case("lsp") || ext.eq_ignore_ascii_case("lisp") {
-                    if let Ok(content) = std::fs::read_to_string(&path) {
+                    if let Ok(content) = read_lsp_text(&path) {
                         let lower = content.to_lowercase();
                         if lower.contains("defun c:") || lower.contains("defun") {
                             files_to_load.push(path);
@@ -4434,7 +4434,7 @@ pub fn auto_load_lisp_scripts_headless() -> usize {
                 }
                 let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
                 if ext.eq_ignore_ascii_case("lsp") || ext.eq_ignore_ascii_case("lisp") {
-                    if let Ok(content) = std::fs::read_to_string(&path) {
+                    if let Ok(content) = read_lsp_text(&path) {
                         let lower = content.to_lowercase();
                         if lower.contains("defun c:") || lower.contains("defun") {
                             files_to_load.push(path);
@@ -4482,7 +4482,7 @@ pub fn auto_load_lisp_scripts_headless() -> usize {
 
 /// Load an AutoLISP `.lsp` file into the active tab's environment without requiring a direct `HostApi` ref.
 pub fn load_lisp_file_headless(path: &Path) -> Result<(), String> {
-    if let Ok(content) = std::fs::read_to_string(path) {
+    if let Ok(content) = read_lsp_text(path) {
         let mut map = LOADED_LISP_SCRIPTS.lock().unwrap();
         cache_script_keys(&mut map, &path.to_string_lossy(), &content);
     }
@@ -4520,6 +4520,32 @@ pub fn load_lisp_file_headless(path: &Path) -> Result<(), String> {
             }
         }
     }
+}
+
+/// Decode `.lsp` bytes: UTF-8 when valid, otherwise Windows-1252 (ANSI files from Notepad and similar editors).
+pub(crate) fn decode_lsp_bytes(bytes: &[u8]) -> String {
+    if let Ok(s) = std::str::from_utf8(bytes) {
+        return s.to_string();
+    }
+    // 0x80..=0x9F in Windows-1252; the five undefined slots map to the C1 control of the same value.
+    const CP1252_HIGH: [char; 32] = [
+        '\u{20AC}', '\u{81}', '\u{201A}', '\u{0192}', '\u{201E}', '\u{2026}', '\u{2020}', '\u{2021}',
+        '\u{02C6}', '\u{2030}', '\u{0160}', '\u{2039}', '\u{0152}', '\u{8D}', '\u{017D}', '\u{8F}',
+        '\u{90}', '\u{2018}', '\u{2019}', '\u{201C}', '\u{201D}', '\u{2022}', '\u{2013}', '\u{2014}',
+        '\u{02DC}', '\u{2122}', '\u{0161}', '\u{203A}', '\u{0153}', '\u{9D}', '\u{017E}', '\u{0178}',
+    ];
+    bytes
+        .iter()
+        .map(|&b| match b {
+            0x80..=0x9F => CP1252_HIGH[(b - 0x80) as usize],
+            _ => b as char,
+        })
+        .collect()
+}
+
+/// Read a `.lsp` file as text, falling back to Windows-1252 when it is not valid UTF-8.
+fn read_lsp_text(path: &Path) -> std::io::Result<String> {
+    std::fs::read(path).map(|b| decode_lsp_bytes(&b))
 }
 
 /// Load an AutoLISP `.lsp` file into the pure Rust environment
@@ -4576,7 +4602,7 @@ pub fn load_lisp_file(path_str: &str, host: &mut dyn HostApi) -> bool {
             }
             return ok;
         }
-    } else if let Ok(content) = std::fs::read_to_string(&resolved) {
+    } else if let Ok(content) = read_lsp_text(&resolved) {
         let mut map = LOADED_LISP_SCRIPTS.lock().unwrap();
         cache_script_keys(&mut map, &resolved.to_string_lossy(), &content);
     }
@@ -4677,6 +4703,14 @@ pub fn execute_lisp_command(cmd_name: &str, _args: &[String], host: &mut dyn Hos
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_decode_lsp_bytes_utf8_and_cp1252() {
+        assert_eq!(decode_lsp_bytes("(princ \"\u{e9}\")".as_bytes()), "(princ \"\u{e9}\")");
+        // ANSI file: 0xE9 alone is invalid UTF-8
+        assert_eq!(decode_lsp_bytes(b"(princ \"caf\xE9\")"), "(princ \"caf\u{e9}\")");
+        assert_eq!(decode_lsp_bytes(b"\x80 \x96 \x99 \xFC \xA7"), "\u{20AC} \u{2013} \u{2122} \u{fc} \u{a7}");
+    }
 
     #[test]
     fn test_rust_lisp_sample_demo_eval_and_dispatch() {
