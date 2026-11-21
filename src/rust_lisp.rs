@@ -689,6 +689,72 @@ fn register_cad_reflection_builtins(env: &mut Env, bridge: Arc<Mutex<OpenCadRust
             .map(Value::Str)
             .unwrap_or(Value::Nil))
     });
+
+    // Host-aware FINDFILE searching current working directory and OpenCAD scripts directory
+    env.def_subr("FINDFILE", |args, _| {
+        if args.len() != 1 {
+            return Err(LispError::WrongArgCount { expected: "1", actual: args.len() });
+        }
+        let filename = match &args[0] {
+            Value::Str(s) => s.clone(),
+            other => return Err(LispError::TypeError { expected: "filename string", actual: other.to_string() }),
+        };
+        let direct = Path::new(&filename);
+        let found = if direct.exists() {
+            Some(direct.to_path_buf())
+        } else {
+            let candidate = scripts_dir().join(&filename);
+            if candidate.exists() {
+                Some(candidate)
+            } else {
+                None
+            }
+        };
+        if let Some(p) = found {
+            if let Ok(abs) = std::fs::canonicalize(&p) {
+                return Ok(Value::Str(abs.to_string_lossy().into_owned()));
+            }
+            Ok(Value::Str(p.to_string_lossy().into_owned()))
+        } else {
+            Ok(Value::Nil)
+        }
+    });
+
+    // Host-aware LOAD resolving against scripts_dir() and decoding UTF-8/BOM or Windows-1252
+    env.def_subr("LOAD", |args, env_rc| {
+        if args.is_empty() || args.len() > 2 {
+            return Err(LispError::WrongArgCount { expected: "1 or 2 (filename [on-failure])", actual: args.len() });
+        }
+        let filename = match &args[0] {
+            Value::Str(s) => s.clone(),
+            Value::Sym(s) => s.to_string(),
+            other => return Err(LispError::TypeError { expected: "filename string", actual: other.to_string() }),
+        };
+        if let Some(resolved) = resolve_lisp_script_path(&filename) {
+            match read_lsp_text(&resolved) {
+                Ok(code) => {
+                    if let Ok(mut map) = LOADED_LISP_SCRIPTS.lock() {
+                        cache_script_keys(&mut map, &resolved.to_string_lossy(), &code);
+                    }
+                    return eval_str(&code, env_rc);
+                }
+                Err(e) => {
+                    if args.len() == 2 {
+                        return Ok(args[1].clone());
+                    }
+                    return Err(LispError::Io(format!("Cannot load file '{}': {}", resolved.display(), e)));
+                }
+            }
+        }
+        if let Some(in_mem_code) = get_loaded_script(&filename) {
+            return eval_str(&in_mem_code, env_rc);
+        }
+        if args.len() == 2 {
+            Ok(args[1].clone())
+        } else {
+            Err(LispError::Io(format!("Cannot load file '{}': No such file", filename)))
+        }
+    });
 }
 
 #[derive(Debug, Clone)]
@@ -3988,6 +4054,83 @@ fn entity_to_dxf(ent: &EntityType) -> Vec<(i16, DxfValue)> {
         }
         EntityType::Dimension(d) => {
             list.insert(0, (0, DxfValue::Str(dimension_dxf_name(d).into())));
+            let base = d.base();
+            let dim_text = base
+                .user_text
+                .as_ref()
+                .filter(|s| !s.is_empty())
+                .unwrap_or(&base.text)
+                .clone();
+            list.push((1, DxfValue::Str(dim_text)));
+            if !base.block_name.is_empty() {
+                list.push((2, DxfValue::Str(base.block_name.clone())));
+            }
+            list.push((3, DxfValue::Str(base.style_name.clone())));
+            list.push((11, DxfValue::Point([base.text_middle_point.x, base.text_middle_point.y, base.text_middle_point.z])));
+            let (dim_type_code, def_pt) = match d.as_ref() {
+                CadDimension::Linear(dim) => {
+                    list.push((13, DxfValue::Point([dim.first_point.x, dim.first_point.y, dim.first_point.z])));
+                    list.push((14, DxfValue::Point([dim.second_point.x, dim.second_point.y, dim.second_point.z])));
+                    list.push((50, DxfValue::Real(dim.rotation.to_degrees())));
+                    list.push((52, DxfValue::Real(dim.ext_line_rotation.to_degrees())));
+                    (0, dim.definition_point)
+                }
+                CadDimension::Aligned(dim) => {
+                    list.push((13, DxfValue::Point([dim.first_point.x, dim.first_point.y, dim.first_point.z])));
+                    list.push((14, DxfValue::Point([dim.second_point.x, dim.second_point.y, dim.second_point.z])));
+                    list.push((52, DxfValue::Real(dim.ext_line_rotation.to_degrees())));
+                    (1, dim.definition_point)
+                }
+                CadDimension::Angular2Ln(dim) => {
+                    list.push((13, DxfValue::Point([dim.first_point.x, dim.first_point.y, dim.first_point.z])));
+                    list.push((14, DxfValue::Point([dim.second_point.x, dim.second_point.y, dim.second_point.z])));
+                    list.push((15, DxfValue::Point([dim.angle_vertex.x, dim.angle_vertex.y, dim.angle_vertex.z])));
+                    list.push((16, DxfValue::Point([dim.dimension_arc.x, dim.dimension_arc.y, dim.dimension_arc.z])));
+                    (2, dim.definition_point)
+                }
+                CadDimension::Diameter(dim) => {
+                    list.push((15, DxfValue::Point([dim.angle_vertex.x, dim.angle_vertex.y, dim.angle_vertex.z])));
+                    list.push((40, DxfValue::Real(dim.leader_length)));
+                    (3, dim.definition_point)
+                }
+                CadDimension::Radius(dim) => {
+                    list.push((15, DxfValue::Point([dim.angle_vertex.x, dim.angle_vertex.y, dim.angle_vertex.z])));
+                    list.push((40, DxfValue::Real(dim.leader_length)));
+                    (4, dim.definition_point)
+                }
+                CadDimension::Angular3Pt(dim) => {
+                    list.push((13, DxfValue::Point([dim.first_point.x, dim.first_point.y, dim.first_point.z])));
+                    list.push((14, DxfValue::Point([dim.second_point.x, dim.second_point.y, dim.second_point.z])));
+                    list.push((15, DxfValue::Point([dim.angle_vertex.x, dim.angle_vertex.y, dim.angle_vertex.z])));
+                    (5, dim.definition_point)
+                }
+                CadDimension::Ordinate(dim) => {
+                    list.push((13, DxfValue::Point([dim.feature_location.x, dim.feature_location.y, dim.feature_location.z])));
+                    list.push((14, DxfValue::Point([dim.leader_endpoint.x, dim.leader_endpoint.y, dim.leader_endpoint.z])));
+                    (6, dim.definition_point)
+                }
+                CadDimension::Arc(dim) => {
+                    list.push((13, DxfValue::Point([dim.first_extension_point.x, dim.first_extension_point.y, dim.first_extension_point.z])));
+                    list.push((14, DxfValue::Point([dim.second_extension_point.x, dim.second_extension_point.y, dim.second_extension_point.z])));
+                    list.push((15, DxfValue::Point([dim.center_point.x, dim.center_point.y, dim.center_point.z])));
+                    (8, dim.definition_point)
+                }
+                CadDimension::LargeRadial(dim) => {
+                    list.push((13, DxfValue::Point([dim.chord_point.x, dim.chord_point.y, dim.chord_point.z])));
+                    list.push((14, DxfValue::Point([dim.override_center.x, dim.override_center.y, dim.override_center.z])));
+                    list.push((15, DxfValue::Point([dim.jog_point.x, dim.jog_point.y, dim.jog_point.z])));
+                    (9, dim.definition_point)
+                }
+            };
+            let resolved_def_pt = if def_pt == Vector3::ZERO && base.definition_point != Vector3::ZERO {
+                base.definition_point
+            } else {
+                def_pt
+            };
+            list.push((10, DxfValue::Point([resolved_def_pt.x, resolved_def_pt.y, resolved_def_pt.z])));
+            list.push((42, DxfValue::Real(d.measurement())));
+            list.push((53, DxfValue::Real(base.text_rotation.to_degrees())));
+            list.push((70, DxfValue::Int(dim_type_code)));
         }
         _ => {
             list.insert(0, (0, DxfValue::Str("UNKNOWN".into())));
@@ -4535,10 +4678,10 @@ pub fn load_lisp_file_headless(path: &Path) -> Result<(), String> {
     }
 }
 
-/// Decode `.lsp` bytes: UTF-8 when valid, otherwise Windows-1252 (ANSI files from Notepad and similar editors).
+/// Decode `.lsp` bytes: UTF-8 (stripping an optional UTF-8 BOM) when valid, otherwise Windows-1252 (ANSI files from Notepad and similar editors).
 pub(crate) fn decode_lsp_bytes(bytes: &[u8]) -> String {
     if let Ok(s) = std::str::from_utf8(bytes) {
-        return s.to_string();
+        return s.strip_prefix('\u{FEFF}').unwrap_or(s).to_string();
     }
     // 0x80..=0x9F in Windows-1252; the five undefined slots map to the C1 control of the same value.
     const CP1252_HIGH: [char; 32] = [
@@ -4557,8 +4700,43 @@ pub(crate) fn decode_lsp_bytes(bytes: &[u8]) -> String {
 }
 
 /// Read a `.lsp` file as text, falling back to Windows-1252 when it is not valid UTF-8.
-fn read_lsp_text(path: &Path) -> std::io::Result<String> {
+pub(crate) fn read_lsp_text(path: &Path) -> std::io::Result<String> {
     std::fs::read(path).map(|b| decode_lsp_bytes(&b))
+}
+
+fn resolve_lisp_script_path(filename: &str) -> Option<PathBuf> {
+    let direct = Path::new(filename);
+    if direct.is_file() {
+        return Some(direct.to_path_buf());
+    }
+    let has_lsp_ext = filename.to_ascii_lowercase().ends_with(".lsp")
+        || filename.to_ascii_lowercase().ends_with(".lisp");
+    if !has_lsp_ext {
+        let with_lsp = PathBuf::from(format!("{filename}.lsp"));
+        if with_lsp.is_file() {
+            return Some(with_lsp);
+        }
+        let with_lisp = PathBuf::from(format!("{filename}.lisp"));
+        if with_lisp.is_file() {
+            return Some(with_lisp);
+        }
+    }
+    let dir = scripts_dir();
+    let in_dir = dir.join(filename);
+    if in_dir.is_file() {
+        return Some(in_dir);
+    }
+    if !has_lsp_ext {
+        let with_lsp = dir.join(format!("{filename}.lsp"));
+        if with_lsp.is_file() {
+            return Some(with_lsp);
+        }
+        let with_lisp = dir.join(format!("{filename}.lisp"));
+        if with_lisp.is_file() {
+            return Some(with_lisp);
+        }
+    }
+    None
 }
 
 /// Load an AutoLISP `.lsp` file into the pure Rust environment
@@ -4568,26 +4746,7 @@ pub fn load_lisp_file(path_str: &str, host: &mut dyn HostApi) -> bool {
     if tab_id != 0 {
         crate::context::set_active_tab_id(tab_id);
     }
-    let path = Path::new(path_str);
-    let resolved = if path.is_file() {
-        path.to_path_buf()
-    } else if Path::new(&format!("{path_str}.lsp")).is_file() {
-        PathBuf::from(format!("{path_str}.lsp"))
-    } else if Path::new(&format!("{path_str}.lisp")).is_file() {
-        PathBuf::from(format!("{path_str}.lisp"))
-    } else {
-        let dir = scripts_dir();
-        let candidate = dir.join(path_str);
-        if candidate.is_file() {
-            candidate
-        } else if dir.join(format!("{path_str}.lsp")).is_file() {
-            dir.join(format!("{path_str}.lsp"))
-        } else if dir.join(format!("{path_str}.lisp")).is_file() {
-            dir.join(format!("{path_str}.lisp"))
-        } else {
-            candidate
-        }
-    };
+    let resolved = resolve_lisp_script_path(path_str).unwrap_or_else(|| scripts_dir().join(path_str));
 
     // If the file is not in `scripts/` on disk, check if it was loaded in memory from OCAIDE or APPLOAD
     if !resolved.is_file() {
@@ -4720,16 +4879,34 @@ mod tests {
     #[test]
     fn test_decode_lsp_bytes_utf8_and_cp1252() {
         assert_eq!(decode_lsp_bytes("(princ \"\u{e9}\")".as_bytes()), "(princ \"\u{e9}\")");
+        // UTF-8 BOM stripped cleanly so lexer does not treat BOM as a symbol
+        assert_eq!(decode_lsp_bytes("\u{FEFF}(setq x 42)".as_bytes()), "(setq x 42)");
         // ANSI file: 0xE9 alone is invalid UTF-8
         assert_eq!(decode_lsp_bytes(b"(princ \"caf\xE9\")"), "(princ \"caf\u{e9}\")");
         assert_eq!(decode_lsp_bytes(b"\x80 \x96 \x99 \xFC \xA7"), "\u{20AC} \u{2013} \u{2122} \u{fc} \u{a7}");
+
+        // Verify AutoLISP (load ...) handles Windows-1252 files via host-aware LOAD override
+        let tmp_path = std::env::temp_dir().join("ocad_test_cp1252_load.lsp");
+        std::fs::write(&tmp_path, b"(setq _cp1252_loaded \"caf\xE9 90\xB0\")").unwrap();
+        let bridge = std::sync::Arc::new(std::sync::Mutex::new(OpenCadRustBridge::new()));
+        let env_rc = lisp_cad::create_cad_env(bridge.clone());
+        register_cad_reflection_builtins(&mut env_rc.borrow_mut(), bridge);
+        let mut env_mut = env_rc;
+        let escaped = tmp_path.to_string_lossy().replace('\\', "/");
+        let load_expr = format!("(load \"{}\")", escaped);
+        lisp_core::eval_str(&load_expr, &mut env_mut).unwrap();
+        assert_eq!(
+            lisp_core::eval_str("_cp1252_loaded", &mut env_mut).unwrap(),
+            Value::Str("caf\u{e9} 90\u{b0}".into())
+        );
+        let _ = std::fs::remove_file(&tmp_path);
     }
 
     #[test]
     fn test_entity_to_dxf_dimension_group0() {
         use ocs_plugin_api::host::codec::entities::{DimensionAligned, DimensionArc, DimensionLargeRadial, DimensionLinear};
-        let a = Vector3::new(0.0, 0.0, 0.0);
-        let b = Vector3::new(10.0, 0.0, 0.0);
+        let a = Vector3::new(100.0, 100.0, 0.0);
+        let b = Vector3::new(110.0, 100.0, 0.0);
         let group0 = |d: CadDimension| {
             let e = EntityType::Dimension(Box::new(d));
             entity_to_dxf(&e)[0].clone()
@@ -4741,6 +4918,30 @@ mod tests {
             group0(CadDimension::LargeRadial(DimensionLargeRadial::default())),
             (0, DxfValue::Str("LARGE_RADIAL_DIMENSION".into()))
         );
+
+        let mut lin = DimensionLinear::new(a, b);
+        lin.definition_point = Vector3::new(110.0, 105.0, 0.0);
+        lin.base.text_middle_point = Vector3::new(105.0, 105.0, 0.0);
+        lin.base.text = "10.0".to_string();
+        lin.base.style_name = "Standard".to_string();
+        let dxf = entity_to_dxf(&EntityType::Dimension(Box::new(CadDimension::Linear(lin))));
+        let get_group = |code: i16| dxf.iter().find(|(c, _)| *c == code).map(|(_, v)| v.clone());
+        assert_eq!(get_group(0), Some(DxfValue::Str("DIMENSION".into())));
+        assert_eq!(get_group(1), Some(DxfValue::Str("10.0".into())));
+        assert_eq!(get_group(3), Some(DxfValue::Str("Standard".into())));
+        assert_eq!(get_group(10), Some(DxfValue::Point([110.0, 105.0, 0.0])));
+        assert_eq!(get_group(11), Some(DxfValue::Point([105.0, 105.0, 0.0])));
+        assert_eq!(get_group(13), Some(DxfValue::Point([100.0, 100.0, 0.0])));
+        assert_eq!(get_group(14), Some(DxfValue::Point([110.0, 100.0, 0.0])));
+        assert_eq!(get_group(42), Some(DxfValue::Real(10.0)));
+        assert_eq!(get_group(50), Some(DxfValue::Real(0.0)));
+        assert_eq!(get_group(70), Some(DxfValue::Int(0)));
+
+        // Spatial ssget bbox check: dimension at (100..110, 100..105) matches containing window and rejects distant window
+        let bbox = lisp_cad::dxf::get_entity_bbox(&dxf);
+        assert_eq!(bbox, Some([100.0, 100.0, 110.0, 105.0]));
+        assert!(lisp_cad::dxf::check_spatial("W", Some(&[[90.0, 90.0, 0.0], [120.0, 120.0, 0.0]]), bbox));
+        assert!(!lisp_cad::dxf::check_spatial("W", Some(&[[0.0, 0.0, 0.0], [20.0, 20.0, 0.0]]), bbox));
     }
 
     #[test]

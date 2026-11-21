@@ -776,7 +776,7 @@ impl IdeApp {
                             .await;
                         if let Some(f) = file {
                             let path = f.path().to_path_buf();
-                            if let Ok(content) = std::fs::read_to_string(&path) {
+                            if let Ok(content) = crate::rust_lisp::read_lsp_text(&path) {
                                 return Some((path, content));
                             }
                         }
