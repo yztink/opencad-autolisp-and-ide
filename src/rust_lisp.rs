@@ -3175,6 +3175,7 @@ impl CadBridge for OpenCadRustBridge {
     }
 
     fn get_point(&mut self, base_pt: Option<[f64; 3]>, prompt: &str) -> Result<Option<[f64; 3]>, String> {
+        self.init_get_state = None;
         flush_lisp_output();
         let bridge = if let Some(b) = active_interactive() {
             b
@@ -3202,6 +3203,7 @@ impl CadBridge for OpenCadRustBridge {
     }
 
     fn get_dist(&mut self, base_pt: Option<[f64; 3]>, prompt: &str) -> Result<Option<f64>, String> {
+        self.init_get_state = None;
         flush_lisp_output();
         let created_here = active_interactive().is_none();
         let bridge = if let Some(b) = active_interactive() {
@@ -3271,9 +3273,12 @@ impl CadBridge for OpenCadRustBridge {
         Ok(dist_opt)
     }
 
-    fn get_string(&mut self, _has_spaces: bool, prompt: &str) -> Result<Option<String>, String> {
+    fn get_string(&mut self, has_spaces: bool, prompt: &str) -> Result<Option<String>, String> {
         self.init_get_state = None;
-        prompt_text_dialog(prompt, "")
+        let Some(text) = prompt_text_dialog(prompt, "")? else {
+            return Ok(None);
+        };
+        Ok(Some(truncate_getstring(&text, has_spaces)))
     }
 
     fn get_int(&mut self, prompt: &str) -> Result<Option<i64>, String> {
@@ -3281,16 +3286,9 @@ impl CadBridge for OpenCadRustBridge {
         let mut hint = String::new();
         loop {
             let Some(text) = prompt_text_dialog(prompt, &hint)? else { return Ok(None) };
-            if text.trim().is_empty() {
-                if bits & 1 != 0 {
-                    hint = "Requires an integer value.".into();
-                    continue;
-                }
-                return Ok(None);
-            }
-            match parse_lisp_int(&text) {
-                Some(v) => return Ok(Some(v)),
-                None => hint = "Requires an integer value.".into(),
+            match check_initget_int(bits, &text) {
+                Ok(v) => return Ok(v),
+                Err(msg) => hint = msg.into(),
             }
         }
     }
@@ -3300,16 +3298,9 @@ impl CadBridge for OpenCadRustBridge {
         let mut hint = String::new();
         loop {
             let Some(text) = prompt_text_dialog(prompt, &hint)? else { return Ok(None) };
-            if text.trim().is_empty() {
-                if bits & 1 != 0 {
-                    hint = "Requires a numeric value.".into();
-                    continue;
-                }
-                return Ok(None);
-            }
-            match parse_lisp_real(&text) {
-                Some(v) => return Ok(Some(v)),
-                None => hint = "Requires a numeric value.".into(),
+            match check_initget_real(bits, &text) {
+                Ok(v) => return Ok(v),
+                Err(msg) => hint = msg.into(),
             }
         }
     }
@@ -3321,16 +3312,10 @@ impl CadBridge for OpenCadRustBridge {
         let mut hint = if listing.is_empty() { String::new() } else { format!("Options: {listing}") };
         loop {
             let Some(text) = prompt_text_dialog(prompt, &hint)? else { return Ok(None) };
-            if text.trim().is_empty() {
-                if bits & 1 != 0 {
-                    continue;
-                }
-                return Ok(None);
+            match check_initget_kword(bits, &kws, &listing, &text) {
+                Ok(v) => return Ok(v),
+                Err(msg) => hint = msg,
             }
-            if let Some(k) = match_initget_keyword(&kws, &text) {
-                return Ok(Some(k));
-            }
-            hint = format!("Invalid option keyword. Options: {listing}");
         }
     }
 
@@ -4666,6 +4651,79 @@ pub(crate) fn parse_lisp_real(text: &str) -> Option<f64> {
     t.parse::<f64>().ok().filter(|v| v.is_finite())
 }
 
+/// Truncate `getstring` input at the first space when `has_spaces` (`cr`) is false.
+pub(crate) fn truncate_getstring(text: &str, has_spaces: bool) -> String {
+    if has_spaces {
+        text.to_string()
+    } else {
+        text.split(' ').next().unwrap_or("").to_string()
+    }
+}
+
+fn check_initget_number<T: Copy>(
+    bits: i32,
+    text: &str,
+    parse: impl FnOnce(&str) -> Option<T>,
+    is_zero: impl FnOnce(T) -> bool,
+    is_neg: impl FnOnce(T) -> bool,
+    requires_msg: &'static str,
+) -> Result<Option<T>, &'static str> {
+    if text.trim().is_empty() {
+        if bits & 1 != 0 {
+            return Err(requires_msg);
+        }
+        return Ok(None);
+    }
+    let Some(v) = parse(text) else {
+        return Err(requires_msg);
+    };
+    let zero = is_zero(v);
+    let neg = is_neg(v);
+    if (bits & 2 != 0) && (bits & 4 != 0) && (zero || neg) {
+        return Err("Value must be positive and nonzero.");
+    }
+    if (bits & 2 != 0) && zero {
+        return Err("Value must be nonzero.");
+    }
+    if (bits & 4 != 0) && neg {
+        return Err("Value must be nonnegative.");
+    }
+    Ok(Some(v))
+}
+
+/// Validate `getint` text against `initget` bits (1 = NoNull, 2 = NoZero, 4 = NoNegative).
+pub(crate) fn check_initget_int(bits: i32, text: &str) -> Result<Option<i64>, &'static str> {
+    check_initget_number(bits, text, parse_lisp_int, |v| v == 0, |v| v < 0, "Requires an integer value.")
+}
+
+/// Validate `getreal` text against `initget` bits (1 = NoNull, 2 = NoZero, 4 = NoNegative).
+pub(crate) fn check_initget_real(bits: i32, text: &str) -> Result<Option<f64>, &'static str> {
+    check_initget_number(bits, text, parse_lisp_real, |v| v == 0.0, |v| v < 0.0, "Requires a numeric value.")
+}
+
+/// Validate `getkword` text against `initget` bits and parsed keywords.
+pub(crate) fn check_initget_kword(
+    bits: i32,
+    kws: &[InitGetKeyword],
+    listing: &str,
+    text: &str,
+) -> Result<Option<String>, String> {
+    if text.trim().is_empty() {
+        if (bits & 1 != 0) && !kws.is_empty() {
+            return Err(format!("Invalid option keyword. Options: {listing}"));
+        }
+        return Ok(None);
+    }
+    if let Some(k) = match_initget_keyword(kws, text) {
+        return Ok(Some(k));
+    }
+    if listing.is_empty() {
+        Err("Invalid option keyword.".into())
+    } else {
+        Err(format!("Invalid option keyword. Options: {listing}"))
+    }
+}
+
 /// Ask for one line of text in a modal dialog. `Ok(None)` = cancelled.
 fn prompt_text_dialog(prompt: &str, hint: &str) -> Result<Option<String>, String> {
     use ocs_plugin_api::dialog::{DialogControl, DialogDef, DialogResponse, DialogRow, DialogValue};
@@ -5161,6 +5219,39 @@ mod tests {
         assert_eq!(parse_lisp_real("-1e2"), Some(-100.0));
         assert_eq!(parse_lisp_real("inf"), None);
         assert_eq!(parse_lisp_real(""), None);
+
+        assert_eq!(truncate_getstring("hello world", false), "hello");
+        assert_eq!(truncate_getstring("hello world", true), "hello world");
+        assert_eq!(truncate_getstring("", false), "");
+
+        assert_eq!(check_initget_int(0, ""), Ok(None));
+        assert_eq!(check_initget_int(1, ""), Err("Requires an integer value."));
+        assert_eq!(check_initget_int(2, "0"), Err("Value must be nonzero."));
+        assert_eq!(check_initget_int(2, "-5"), Ok(Some(-5)));
+        assert_eq!(check_initget_int(4, "-5"), Err("Value must be nonnegative."));
+        assert_eq!(check_initget_int(4, "0"), Ok(Some(0)));
+        assert_eq!(check_initget_int(6, "0"), Err("Value must be positive and nonzero."));
+        assert_eq!(check_initget_int(6, "-5"), Err("Value must be positive and nonzero."));
+        assert_eq!(check_initget_int(6, "5"), Ok(Some(5)));
+
+        assert_eq!(check_initget_real(0, ""), Ok(None));
+        assert_eq!(check_initget_real(1, ""), Err("Requires a numeric value."));
+        assert_eq!(check_initget_real(2, "0.0"), Err("Value must be nonzero."));
+        assert_eq!(check_initget_real(2, "-2.5"), Ok(Some(-2.5)));
+        assert_eq!(check_initget_real(4, "-2.5"), Err("Value must be nonnegative."));
+        assert_eq!(check_initget_real(4, "0.0"), Ok(Some(0.0)));
+        assert_eq!(check_initget_real(6, "0.0"), Err("Value must be positive and nonzero."));
+        assert_eq!(check_initget_real(6, "-2.5"), Err("Value must be positive and nonzero."));
+        assert_eq!(check_initget_real(6, "2.5"), Ok(Some(2.5)));
+
+        let yn = parse_initget_keywords("Yes No");
+        assert_eq!(check_initget_kword(0, &yn, "Yes/No", ""), Ok(None));
+        assert_eq!(
+            check_initget_kword(1, &yn, "Yes/No", ""),
+            Err("Invalid option keyword. Options: Yes/No".into())
+        );
+        assert_eq!(check_initget_kword(1, &yn, "Yes/No", "y"), Ok(Some("Yes".into())));
+        assert_eq!(check_initget_kword(1, &[], "", ""), Ok(None));
     }
 
     #[test]
