@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Duration;
 
 use ocs_plugin_api::host::codec::entities::{
-    Arc as CadArc, Circle, Insert, Line, LwPolyline, LwVertex, MText, Point, Solid, Text as CadText,
+    Arc as CadArc, Circle, Dimension as CadDimension, Insert, Line, LwPolyline, LwVertex, MText, Point, Solid, Text as CadText,
 };
 use ocs_plugin_api::host::codec::types::{Vector2, Vector3};
 use ocs_plugin_api::host::Document as CadDocument;
@@ -3904,6 +3904,16 @@ fn dxf_to_entity(
     }
 }
 
+/// DXF group 0 name of a dimension: "DIMENSION" for every kind except the arc-length and
+/// large-radial ones, which have their own entity names.
+fn dimension_dxf_name(d: &CadDimension) -> &'static str {
+    match d {
+        CadDimension::Arc(_) => "ARC_DIMENSION",
+        CadDimension::LargeRadial(_) => "LARGE_RADIAL_DIMENSION",
+        _ => "DIMENSION",
+    }
+}
+
 /// Convert an `EntityType` back to DXF records
 fn entity_to_dxf(ent: &EntityType) -> Vec<(i16, DxfValue)> {
     let mut list = Vec::new();
@@ -3975,6 +3985,9 @@ fn entity_to_dxf(ent: &EntityType) -> Vec<(i16, DxfValue)> {
             list.push((42, DxfValue::Real(ins.y_scale())));
             list.push((43, DxfValue::Real(ins.z_scale())));
             list.push((50, DxfValue::Real(ins.rotation.to_degrees())));
+        }
+        EntityType::Dimension(d) => {
+            list.insert(0, (0, DxfValue::Str(dimension_dxf_name(d).into())));
         }
         _ => {
             list.insert(0, (0, DxfValue::Str("UNKNOWN".into())));
@@ -4677,6 +4690,24 @@ pub fn execute_lisp_command(cmd_name: &str, _args: &[String], host: &mut dyn Hos
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_entity_to_dxf_dimension_group0() {
+        use ocs_plugin_api::host::codec::entities::{DimensionAligned, DimensionArc, DimensionLargeRadial, DimensionLinear};
+        let a = Vector3::new(0.0, 0.0, 0.0);
+        let b = Vector3::new(10.0, 0.0, 0.0);
+        let group0 = |d: CadDimension| {
+            let e = EntityType::Dimension(Box::new(d));
+            entity_to_dxf(&e)[0].clone()
+        };
+        assert_eq!(group0(CadDimension::Aligned(DimensionAligned::new(a, b))), (0, DxfValue::Str("DIMENSION".into())));
+        assert_eq!(group0(CadDimension::Linear(DimensionLinear::new(a, b))), (0, DxfValue::Str("DIMENSION".into())));
+        assert_eq!(group0(CadDimension::Arc(DimensionArc::default())), (0, DxfValue::Str("ARC_DIMENSION".into())));
+        assert_eq!(
+            group0(CadDimension::LargeRadial(DimensionLargeRadial::default())),
+            (0, DxfValue::Str("LARGE_RADIAL_DIMENSION".into()))
+        );
+    }
 
     #[test]
     fn test_rust_lisp_sample_demo_eval_and_dispatch() {
