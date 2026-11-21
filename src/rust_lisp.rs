@@ -29,7 +29,14 @@ static LISP_TASK_TX: OnceLock<std::sync::mpsc::Sender<LispTask>> = OnceLock::new
 static LISP_OUTPUT_BUFFER: Mutex<String> = Mutex::new(String::new());
 
 /// Flush any buffered AutoLISP output to the active host session.
+///
+/// While an interactive command is active the text stays buffered: the host answers
+/// requests that arrive during an interactive step with a placeholder host that discards
+/// output, so it is delivered when the command ends instead.
 pub fn flush_lisp_output() {
+    if active_interactive().is_some() {
+        return;
+    }
     let text = {
         let mut buf = LISP_OUTPUT_BUFFER.lock().unwrap();
         std::mem::take(&mut *buf)
@@ -42,6 +49,43 @@ pub fn flush_lisp_output() {
                     h.push_output(msg);
                 });
             }
+        }
+    }
+}
+
+/// Text interactive commands left behind when they ended, by ticket. Each is printed by
+/// the `LSPFLUSH <ticket>` dispatch its command ends with, which runs with the real host.
+static PENDING_COMMAND_OUTPUT: Mutex<Vec<(u64, String)>> = Mutex::new(Vec::new());
+static NEXT_OUTPUT_TICKET: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
+/// Internal command an ending interactive command dispatches so its remaining text is printed.
+pub const FLUSH_OUTPUT_COMMAND: &str = "LSPFLUSH";
+
+/// Keep `text` for the flush dispatch and return the command line that prints it.
+fn park_command_output(text: String) -> String {
+    let ticket = NEXT_OUTPUT_TICKET.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let mut pending = PENDING_COMMAND_OUTPUT.lock().unwrap();
+    // A command that ends by committing entities never dispatches; drop what it left.
+    if pending.len() >= 16 {
+        pending.remove(0);
+    }
+    pending.push((ticket, text));
+    format!("{FLUSH_OUTPUT_COMMAND} {ticket}")
+}
+
+/// Print the text a finished interactive command parked under `ticket`.
+pub fn flush_pending_command_output(host: &mut dyn HostApi, ticket: &str) {
+    let Ok(ticket) = ticket.trim().parse::<u64>() else { return };
+    let text = {
+        let mut pending = PENDING_COMMAND_OUTPUT.lock().unwrap();
+        match pending.iter().position(|(t, _)| *t == ticket) {
+            Some(i) => pending.remove(i).1,
+            None => return,
+        }
+    };
+    for line in text.lines() {
+        if !line.is_empty() {
+            host.push_output(line);
         }
     }
 }
@@ -315,14 +359,13 @@ fn finish_interactive_or_eval(
                 } else {
                     Some(buffered)
                 };
-                active.finish();
+                // A request sent from here reaches the host while it is still answering the
+                // interactive step, where output is discarded. The command ends by
+                // dispatching an internal command instead; that dispatch prints the text.
                 if let Some(msg) = output {
-                    if let Some(s) = crate::context::get_global_sender() {
-                        std::thread::spawn(move || {
-                            let _ = s.request(ocs_plugin_api::ipc::protocol::PluginRequest::PushOutput(msg));
-                        });
-                    }
+                    active.queue_command(park_command_output(msg));
                 }
+                active.finish();
             }
             Err(ref e) => {
                 if !buffered.is_empty() {
@@ -410,9 +453,15 @@ fn get_task_tx() -> &'static std::sync::mpsc::Sender<LispTask> {
                     for line in text.split('\n') {
                         let msg = line.trim_end_matches('\r');
                         if !msg.is_empty() {
-                            let sent = with_host(|h| {
-                                h.push_output(msg);
-                            });
+                            // During an interactive command the host would discard the
+                            // line (see `flush_lisp_output`): keep it for the end.
+                            let sent = if active_interactive().is_some() {
+                                Err("deferred")
+                            } else {
+                                with_host(|h| {
+                                    h.push_output(msg);
+                                })
+                            };
                             if sent.is_err() {
                                 let mut buf = LISP_OUTPUT_BUFFER.lock().unwrap();
                                 if !buf.is_empty() {
@@ -4897,7 +4946,16 @@ mod tests {
 
         // Provide point (50, 75, 0)
         let step = cmd.on_point([50.0, 75.0, 0.0]);
-        assert!(matches!(step, ocs_plugin_api::host::CommandStep::Done));
+        assert!(command_ended(&step), "got {:?}", step);
+    }
+
+    /// The command ended: plainly, or by dispatching the flush of the text it left behind.
+    fn command_ended(step: &ocs_plugin_api::host::CommandStep) -> bool {
+        match step {
+            ocs_plugin_api::host::CommandStep::Done => true,
+            ocs_plugin_api::host::CommandStep::Dispatch(cmd) => cmd.starts_with(FLUSH_OUTPUT_COMMAND),
+            _ => false,
+        }
     }
 
     #[test]
@@ -6204,7 +6262,7 @@ mod tests {
         let step2 = cmd2.on_enter();
         done_rx2.recv().unwrap();
         assert!(
-            matches!(step2, ocs_plugin_api::host::CommandStep::Done),
+            command_ended(&step2),
             "Expected CommandStep::Done after Enter cancel, got {:?}",
             step2
         );

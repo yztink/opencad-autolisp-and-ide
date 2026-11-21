@@ -38,6 +38,12 @@ pub fn dispatch_command(host: &mut dyn HostApi, cmd: &str) -> bool {
     if trimmed.is_empty() {
         return false;
     }
+    if let Some((name, ticket)) = trimmed.split_once(' ') {
+        if name.eq_ignore_ascii_case(crate::rust_lisp::FLUSH_OUTPUT_COMMAND) {
+            crate::rust_lisp::flush_pending_command_output(host, ticket);
+            return true;
+        }
+    }
 
     // Strip leading '>' if passed through
     if let Some(stripped) = trimmed.strip_prefix('>') {

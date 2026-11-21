@@ -32,7 +32,7 @@ pub static MANIFEST: PluginManifest = PluginManifest {
     api_version: ApiVersion::CURRENT,
     ribbon_order: 150,
     xdata_apps: &[],
-    command_prefixes: &["OCAIDE", "LSP", "LISP", "LSPRUN", "LSPLIST", "LSPRELOAD", "LSPDIR", "LSPERR", "LISPERR", "APPLOAD"],
+    command_prefixes: &["OCAIDE", "LSP", "LISP", "LSPRUN", "LSPLIST", "LSPRELOAD", "LSPDIR", "LSPERR", "LISPERR", "APPLOAD", "LSPFLUSH"],
 };
 
 pub struct AutoLispPlugin;
