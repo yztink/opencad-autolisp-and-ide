@@ -719,6 +719,8 @@ pub struct OpenCadRustBridge {
     pub registered_apps: std::collections::HashSet<String>,
     pub active_host_command: Option<String>,
     pub init_dia_flag: bool,
+    /// Pending `initget` bits and keyword string; consumed by the next get* call.
+    pub init_get_state: Option<(i32, String)>,
     pub selection_sets: HashMap<u64, Vec<u64>>,
     pub next_ss_handle: u64,
     pub previous_selection: Vec<u64>,
@@ -1670,6 +1672,7 @@ impl OpenCadRustBridge {
             registered_apps: std::collections::HashSet::new(),
             active_host_command: None,
             init_dia_flag: false,
+            init_get_state: None,
             selection_sets: HashMap::new(),
             next_ss_handle: 1,
             previous_selection: Vec::new(),
@@ -3153,23 +3156,72 @@ impl CadBridge for OpenCadRustBridge {
         Ok(dist_opt)
     }
 
-    fn get_string(&mut self, _has_spaces: bool, _prompt: &str) -> Result<Option<String>, String> {
-        Ok(None)
+    fn get_string(&mut self, _has_spaces: bool, prompt: &str) -> Result<Option<String>, String> {
+        self.init_get_state = None;
+        prompt_text_dialog(prompt, "")
     }
 
-    fn get_int(&mut self, _prompt: &str) -> Result<Option<i64>, String> {
-        Ok(None)
+    fn get_int(&mut self, prompt: &str) -> Result<Option<i64>, String> {
+        let (bits, _) = self.init_get_state.take().unwrap_or((0, String::new()));
+        let mut hint = String::new();
+        loop {
+            let Some(text) = prompt_text_dialog(prompt, &hint)? else { return Ok(None) };
+            if text.trim().is_empty() {
+                if bits & 1 != 0 {
+                    hint = "Requires an integer value.".into();
+                    continue;
+                }
+                return Ok(None);
+            }
+            match parse_lisp_int(&text) {
+                Some(v) => return Ok(Some(v)),
+                None => hint = "Requires an integer value.".into(),
+            }
+        }
     }
 
-    fn get_real(&mut self, _prompt: &str) -> Result<Option<f64>, String> {
-        Ok(None)
+    fn get_real(&mut self, prompt: &str) -> Result<Option<f64>, String> {
+        let (bits, _) = self.init_get_state.take().unwrap_or((0, String::new()));
+        let mut hint = String::new();
+        loop {
+            let Some(text) = prompt_text_dialog(prompt, &hint)? else { return Ok(None) };
+            if text.trim().is_empty() {
+                if bits & 1 != 0 {
+                    hint = "Requires a numeric value.".into();
+                    continue;
+                }
+                return Ok(None);
+            }
+            match parse_lisp_real(&text) {
+                Some(v) => return Ok(Some(v)),
+                None => hint = "Requires a numeric value.".into(),
+            }
+        }
     }
 
-    fn get_kword(&mut self, _prompt: &str) -> Result<Option<String>, String> {
-        Ok(None)
+    fn get_kword(&mut self, prompt: &str) -> Result<Option<String>, String> {
+        let (bits, keywords) = self.init_get_state.take().unwrap_or((0, String::new()));
+        let kws = parse_initget_keywords(&keywords);
+        let listing = kws.iter().map(|k| k.name.as_str()).collect::<Vec<_>>().join("/");
+        let mut hint = if listing.is_empty() { String::new() } else { format!("Options: {listing}") };
+        loop {
+            let Some(text) = prompt_text_dialog(prompt, &hint)? else { return Ok(None) };
+            if text.trim().is_empty() {
+                if bits & 1 != 0 {
+                    continue;
+                }
+                return Ok(None);
+            }
+            if let Some(k) = match_initget_keyword(&kws, &text) {
+                return Ok(Some(k));
+            }
+            hint = format!("Invalid option keyword. Options: {listing}");
+        }
     }
 
-    fn init_get(&mut self, _bits: i32, _keywords: &str) {}
+    fn init_get(&mut self, bits: i32, keywords: &str) {
+        self.init_get_state = Some((bits, keywords.to_string()));
+    }
 
     fn init_dia(&mut self, use_dialog: bool) {
         self.init_dia_flag = use_dialog;
@@ -4347,6 +4399,97 @@ pub fn get_loaded_script(name: &str) -> Option<String> {
     None
 }
 
+/// One `initget` keyword: its name and how many leading characters must be typed.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) struct InitGetKeyword {
+    pub name: String,
+    pub min_len: usize,
+}
+
+/// Parse an `initget` keyword string ("Yes No", "LTYPE,LT", "Oui Non _Yes No").
+/// Leading uppercase letters give the shortest accepted abbreviation; with no lowercase
+/// letters or no uppercase letters the whole word is required. In the comma form the part
+/// after the comma is the abbreviation. Everything from the first `_`-prefixed entry on is
+/// the list of global names and is not offered here.
+pub(crate) fn parse_initget_keywords(spec: &str) -> Vec<InitGetKeyword> {
+    spec.split_whitespace()
+        .take_while(|t| !t.starts_with('_'))
+        .filter_map(|t| {
+            if let Some((name, abbr)) = t.split_once(',') {
+                if name.is_empty() {
+                    return None;
+                }
+                let full = name.chars().count();
+                let min_len = if abbr.is_empty() { full } else { abbr.chars().count().min(full) };
+                return Some(InitGetKeyword { name: name.to_string(), min_len });
+            }
+            let upper = t.chars().take_while(|c| c.is_uppercase()).count();
+            let min_len = if upper == 0 || upper == t.chars().count() { t.chars().count() } else { upper };
+            Some(InitGetKeyword { name: t.to_string(), min_len })
+        })
+        .collect()
+}
+
+/// Match typed text to a keyword: case-insensitive, accepts an abbreviation of at least `min_len`.
+pub(crate) fn match_initget_keyword(kws: &[InitGetKeyword], input: &str) -> Option<String> {
+    let typed = input.trim().to_lowercase();
+    if typed.is_empty() {
+        return None;
+    }
+    let n = typed.chars().count();
+    kws.iter()
+        .find(|k| n >= k.min_len && k.name.to_lowercase().starts_with(&typed))
+        .map(|k| k.name.clone())
+}
+
+/// AutoLISP integer input: optional sign and digits only.
+pub(crate) fn parse_lisp_int(text: &str) -> Option<i64> {
+    let t = text.trim();
+    let digits = t.strip_prefix(['+', '-']).unwrap_or(t);
+    if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    t.parse().ok()
+}
+
+/// AutoLISP real input: decimal number, optional sign/exponent, no inf/nan.
+pub(crate) fn parse_lisp_real(text: &str) -> Option<f64> {
+    let t = text.trim();
+    if t.is_empty() || !t.bytes().any(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    t.parse::<f64>().ok().filter(|v| v.is_finite())
+}
+
+/// Ask for one line of text in a modal dialog. `Ok(None)` = cancelled.
+fn prompt_text_dialog(prompt: &str, hint: &str) -> Result<Option<String>, String> {
+    use ocs_plugin_api::dialog::{DialogControl, DialogDef, DialogResponse, DialogRow, DialogValue};
+    flush_lisp_output();
+    let label = prompt.trim().trim_end_matches(':').trim();
+    let mut def = DialogDef::new("AutoLISP");
+    def.width = Some(380.0);
+    if !hint.is_empty() {
+        def.rows.push(DialogRow::single(DialogControl::InfoText { text: hint.to_string(), align_h: None }));
+    }
+    def.rows.push(DialogRow::single(DialogControl::Text {
+        id: "value".into(),
+        label: if label.is_empty() { "Enter value".into() } else { label.to_string() },
+        default: String::new(),
+    }));
+    let bridge = if let Some(b) = active_interactive() {
+        b
+    } else {
+        crate::context::ensure_interactive_dialog("AutoLISP", def.clone())?
+    };
+    match bridge.show_dialog(def) {
+        DialogResponse::Submitted(map) => match map.get("value") {
+            Some(DialogValue::Text(t)) => Ok(Some(t.clone())),
+            _ => Ok(None),
+        },
+        DialogResponse::Cancelled => Ok(None),
+    }
+}
+
 /// Automatically load all `.lsp` / `.lisp` files in `scripts/` and `scripts/autoload/` on startup.
 pub fn auto_load_lisp_scripts(host: &mut dyn HostApi) -> usize {
     let Ok(dir) = ensure_scripts_dir() else {
@@ -4677,6 +4820,33 @@ pub fn execute_lisp_command(cmd_name: &str, _args: &[String], host: &mut dyn Hos
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_initget_keyword_matching_and_number_parsing() {
+        let kws = parse_initget_keywords("Yes No");
+        assert_eq!(kws, vec![
+            InitGetKeyword { name: "Yes".into(), min_len: 1 },
+            InitGetKeyword { name: "No".into(), min_len: 1 },
+        ]);
+        assert_eq!(match_initget_keyword(&kws, "y"), Some("Yes".into()));
+        assert_eq!(match_initget_keyword(&kws, " NO "), Some("No".into()));
+        assert_eq!(match_initget_keyword(&kws, "maybe"), None);
+        let kws = parse_initget_keywords("EXit Width LTYPE,LT _Exit Width Ltype");
+        assert_eq!(kws.len(), 3); // the names after "_" are global names, not extra options
+        assert_eq!(match_initget_keyword(&kws, "e"), None); // required prefix is "EX"
+        assert_eq!(match_initget_keyword(&kws, "ex"), Some("EXit".into()));
+        assert_eq!(match_initget_keyword(&kws, "wid"), Some("Width".into()));
+        assert_eq!(match_initget_keyword(&kws, "l"), None); // comma form: "LT" is the abbreviation
+        assert_eq!(match_initget_keyword(&kws, "lt"), Some("LTYPE".into()));
+        assert_eq!(match_initget_keyword(&kws, "ltype"), Some("LTYPE".into()));
+        assert_eq!(parse_lisp_int(" -12 "), Some(-12));
+        assert_eq!(parse_lisp_int("1.5"), None);
+        assert_eq!(parse_lisp_int("abc"), None);
+        assert_eq!(parse_lisp_real("3.25"), Some(3.25));
+        assert_eq!(parse_lisp_real("-1e2"), Some(-100.0));
+        assert_eq!(parse_lisp_real("inf"), None);
+        assert_eq!(parse_lisp_real(""), None);
+    }
 
     #[test]
     fn test_rust_lisp_sample_demo_eval_and_dispatch() {
