@@ -389,7 +389,7 @@ fn finish_interactive_or_eval(
     if let Some(active) = active_interactive() {
         match eval_res {
             Ok(val) => {
-                let output = if val == Value::Nil {
+                let output = if val.is_quiet_symbol() {
                     if buffered.is_empty() {
                         None
                     } else {
@@ -457,7 +457,7 @@ fn finish_interactive_or_eval(
     if let Some(tx) = resp {
         let res = match eval_res {
             Ok(val) => {
-                let combined = if val == Value::Nil {
+                let combined = if val.is_quiet_symbol() {
                     if buffered.is_empty() {
                         None
                     } else {
@@ -5532,6 +5532,26 @@ mod tests {
         assert!(handled);
         let outputs = mock_host.captured_output.lock().unwrap().clone();
         assert_eq!(outputs, vec!["Hello", "World"]);
+    }
+
+    #[test]
+    fn test_eval_prints_nil_and_keeps_princ_silent() {
+        let mut mock_host = crate::context::DebugHost::new(None);
+        assert!(eval_lisp_expr("(eq \"test\" \"test\")", &mut mock_host));
+        assert!(eval_lisp_expr("(eq \"test\" \"other\")", &mut mock_host));
+        assert!(eval_lisp_expr("(princ)", &mut mock_host));
+        let outputs = mock_host.captured_output.lock().unwrap().clone();
+        assert_eq!(outputs, vec!["T", "nil"]);
+
+        assert_eq!(
+            eval_lisp_str_headless("(eq \"test\" \"test\")").unwrap().as_deref(),
+            Some("T")
+        );
+        assert_eq!(
+            eval_lisp_str_headless("(eq \"test\" \"other\")").unwrap().as_deref(),
+            Some("nil")
+        );
+        assert_eq!(eval_lisp_str_headless("(princ)").unwrap(), None);
     }
 
     #[test]
