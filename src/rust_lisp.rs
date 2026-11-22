@@ -329,6 +329,54 @@ pub fn send_host_keepalive() {
     }
 }
 
+/// Push non-empty output lines to the active host IPC sender when available.
+fn try_push_interactive_output(msg: &str) -> bool {
+    let Some(sender) = crate::context::get_global_sender() else {
+        return false;
+    };
+    for line in msg.split('\n') {
+        let trimmed = line.trim_end_matches('\r');
+        if !trimmed.is_empty()
+            && sender
+                .request(ocs_plugin_api::ipc::protocol::PluginRequest::PushOutput(
+                    trimmed.to_string(),
+                ))
+                .is_err()
+        {
+            return false;
+        }
+    }
+    true
+}
+
+/// Emit text output during LISP execution, preferring synchronous host IPC while interactive
+/// and falling back to buffering in `LISP_OUTPUT_BUFFER` for deferred/test delivery.
+fn emit_interactive_output(msg: &str) {
+    if active_interactive().is_some() && try_push_interactive_output(msg) {
+        return;
+    }
+    for line in msg.split('\n') {
+        let trimmed = line.trim_end_matches('\r');
+        if trimmed.is_empty() {
+            continue;
+        }
+        let sent = if active_interactive().is_some() {
+            Err("deferred")
+        } else {
+            with_host(|h| {
+                h.push_output(trimmed);
+            })
+        };
+        if sent.is_err() {
+            let mut buf = LISP_OUTPUT_BUFFER.lock().unwrap();
+            if !buf.is_empty() {
+                buf.push('\n');
+            }
+            buf.push_str(trimmed);
+        }
+    }
+}
+
 fn finish_interactive_or_eval(
     eval_res: Result<Value, LispError>,
     buffered: String,
@@ -359,21 +407,28 @@ fn finish_interactive_or_eval(
                 } else {
                     Some(buffered)
                 };
-                // A request sent from here reaches the host while it is still answering the
-                // interactive step, where output is discarded. The command ends by
-                // dispatching an internal command instead; that dispatch prints the text.
+                // Push output synchronously through the plugin request sender before finishing so
+                // the host prints it in command history without dispatching `LSPFLUSH`. Fall back
+                // to parking `LSPFLUSH` only when no IPC sender exists (e.g. unit tests) and no
+                // pending entities would cause the host to skip queued commands.
                 if let Some(msg) = output {
-                    active.queue_command(park_command_output(msg));
+                    if !try_push_interactive_output(&msg) {
+                        let has_pending_entities = active
+                            .coordinator
+                            .pending_entities
+                            .lock()
+                            .map(|e| !e.is_empty())
+                            .unwrap_or(false);
+                        if !has_pending_entities {
+                            active.queue_command(park_command_output(msg));
+                        }
+                    }
                 }
                 active.finish();
             }
             Err(ref e) => {
                 if !buffered.is_empty() {
-                    if let Some(s) = crate::context::get_global_sender() {
-                        std::thread::spawn(move || {
-                            let _ = s.request(ocs_plugin_api::ipc::protocol::PluginRequest::PushOutput(buffered));
-                        });
-                    }
+                    let _ = try_push_interactive_output(&buffered);
                 }
                 let err = format_and_store_eval_error(e);
                 if crate::ide::server::has_active_clients() {
@@ -386,12 +441,12 @@ fn finish_interactive_or_eval(
                     err.lines().next().unwrap_or(err.as_str()).to_string()
                 });
                 let err_msg = format_cmdline_with_prefix("AutoLISP Error", &cmdline);
-                active.fail(&err_msg);
                 if let Some(s) = crate::context::get_global_sender() {
-                    std::thread::spawn(move || {
-                        let _ = s.request(ocs_plugin_api::ipc::protocol::PluginRequest::PushError(err_msg));
-                    });
+                    let _ = s.request(ocs_plugin_api::ipc::protocol::PluginRequest::PushError(
+                        err_msg.clone(),
+                    ));
                 }
+                active.fail(&err_msg);
             }
         }
         set_active_interactive(None);
@@ -447,29 +502,8 @@ fn get_task_tx() -> &'static std::sync::mpsc::Sender<LispTask> {
                 let mut tab_envs: HashMap<u64, std::rc::Rc<std::cell::RefCell<Env>>> = HashMap::new();
 
                 lisp_core::set_output_sink(Some(Box::new(|text: &str| {
-                    if text.is_empty() {
-                        return;
-                    }
-                    for line in text.split('\n') {
-                        let msg = line.trim_end_matches('\r');
-                        if !msg.is_empty() {
-                            // During an interactive command the host would discard the
-                            // line (see `flush_lisp_output`): keep it for the end.
-                            let sent = if active_interactive().is_some() {
-                                Err("deferred")
-                            } else {
-                                with_host(|h| {
-                                    h.push_output(msg);
-                                })
-                            };
-                            if sent.is_err() {
-                                let mut buf = LISP_OUTPUT_BUFFER.lock().unwrap();
-                                if !buf.is_empty() {
-                                    buf.push('\n');
-                                }
-                                buf.push_str(msg);
-                            }
-                        }
+                    if !text.is_empty() {
+                        emit_interactive_output(text);
                     }
                 })));
 
@@ -3205,7 +3239,6 @@ impl CadBridge for OpenCadRustBridge {
     fn get_dist(&mut self, base_pt: Option<[f64; 3]>, prompt: &str) -> Result<Option<f64>, String> {
         self.init_get_state = None;
         flush_lisp_output();
-        let created_here = active_interactive().is_none();
         let bridge = if let Some(b) = active_interactive() {
             b
         } else {
@@ -3235,13 +3268,7 @@ impl CadBridge for OpenCadRustBridge {
             bridge.coordinator.set_prompt(p1_prompt.to_string());
             match bridge.get_point_with_rubber_band(Some(p1_prompt), None) {
                 Some(pt) => pt,
-                None => {
-                    if created_here {
-                        bridge.finish();
-                        set_active_interactive(None);
-                    }
-                    return Ok(None);
-                }
+                None => return Ok(None),
             }
         };
 
@@ -3265,17 +3292,12 @@ impl CadBridge for OpenCadRustBridge {
             None => None,
         };
 
-        if created_here {
-            bridge.finish();
-            set_active_interactive(None);
-        }
-
         Ok(dist_opt)
     }
 
     fn get_string(&mut self, has_spaces: bool, prompt: &str) -> Result<Option<String>, String> {
         self.init_get_state = None;
-        let Some(text) = prompt_text_dialog(prompt, "")? else {
+        let Some(text) = prompt_command_line_text(prompt, "Enter string:", true)? else {
             return Ok(None);
         };
         Ok(Some(truncate_getstring(&text, has_spaces)))
@@ -3283,24 +3305,26 @@ impl CadBridge for OpenCadRustBridge {
 
     fn get_int(&mut self, prompt: &str) -> Result<Option<i64>, String> {
         let (bits, _) = self.init_get_state.take().unwrap_or((0, String::new()));
-        let mut hint = String::new();
         loop {
-            let Some(text) = prompt_text_dialog(prompt, &hint)? else { return Ok(None) };
+            let Some(text) = prompt_command_line_text(prompt, "Enter integer:", false)? else {
+                return Ok(None);
+            };
             match check_initget_int(bits, &text) {
                 Ok(v) => return Ok(v),
-                Err(msg) => hint = msg.into(),
+                Err(msg) => emit_interactive_output(msg),
             }
         }
     }
 
     fn get_real(&mut self, prompt: &str) -> Result<Option<f64>, String> {
         let (bits, _) = self.init_get_state.take().unwrap_or((0, String::new()));
-        let mut hint = String::new();
         loop {
-            let Some(text) = prompt_text_dialog(prompt, &hint)? else { return Ok(None) };
+            let Some(text) = prompt_command_line_text(prompt, "Enter number:", false)? else {
+                return Ok(None);
+            };
             match check_initget_real(bits, &text) {
                 Ok(v) => return Ok(v),
-                Err(msg) => hint = msg.into(),
+                Err(msg) => emit_interactive_output(msg),
             }
         }
     }
@@ -3309,12 +3333,23 @@ impl CadBridge for OpenCadRustBridge {
         let (bits, keywords) = self.init_get_state.take().unwrap_or((0, String::new()));
         let kws = parse_initget_keywords(&keywords);
         let listing = kws.iter().map(|k| k.name.as_str()).collect::<Vec<_>>().join("/");
-        let mut hint = if listing.is_empty() { String::new() } else { format!("Options: {listing}") };
+        let kword_prompt = if listing.is_empty() || prompt.contains('[') {
+            prompt.trim().to_string()
+        } else {
+            let base = prompt.trim().trim_end_matches(':').trim_end();
+            if base.is_empty() {
+                format!("Enter keyword [{listing}]:")
+            } else {
+                format!("{base} [{listing}]:")
+            }
+        };
         loop {
-            let Some(text) = prompt_text_dialog(prompt, &hint)? else { return Ok(None) };
+            let Some(text) = prompt_command_line_text(&kword_prompt, "Enter keyword:", false)? else {
+                return Ok(None);
+            };
             match check_initget_kword(bits, &kws, &listing, &text) {
                 Ok(v) => return Ok(v),
-                Err(msg) => hint = msg,
+                Err(msg) => emit_interactive_output(&msg),
             }
         }
     }
@@ -4724,33 +4759,23 @@ pub(crate) fn check_initget_kword(
     }
 }
 
-/// Ask for one line of text in a modal dialog. `Ok(None)` = cancelled.
-fn prompt_text_dialog(prompt: &str, hint: &str) -> Result<Option<String>, String> {
-    use ocs_plugin_api::dialog::{DialogControl, DialogDef, DialogResponse, DialogRow, DialogValue};
-    flush_lisp_output();
-    let label = prompt.trim().trim_end_matches(':').trim();
-    let mut def = DialogDef::new("AutoLISP");
-    def.width = Some(380.0);
-    if !hint.is_empty() {
-        def.rows.push(DialogRow::single(DialogControl::InfoText { text: hint.to_string(), align_h: None }));
-    }
-    def.rows.push(DialogRow::single(DialogControl::Text {
-        id: "value".into(),
-        label: if label.is_empty() { "Enter value".into() } else { label.to_string() },
-        default: String::new(),
-    }));
+/// Ask for one line of text on the CAD command line. `Ok(None)` = cancelled.
+fn prompt_command_line_text(
+    prompt: &str,
+    fallback: &str,
+    free_text: bool,
+) -> Result<Option<String>, String> {
+    let cleaned = prompt.trim();
+    let prompt_text = if cleaned.is_empty() { fallback } else { cleaned };
     let bridge = if let Some(b) = active_interactive() {
         b
     } else {
-        crate::context::ensure_interactive_dialog("AutoLISP", def.clone())?
+        crate::context::ensure_interactive_with_mode(
+            prompt_text,
+            crate::interactive::InteractionMode::Text { free_text },
+        )?
     };
-    match bridge.show_dialog(def) {
-        DialogResponse::Submitted(map) => match map.get("value") {
-            Some(DialogValue::Text(t)) => Ok(Some(t.clone())),
-            _ => Ok(None),
-        },
-        DialogResponse::Cancelled => Ok(None),
-    }
+    Ok(bridge.get_text(prompt_text, free_text))
 }
 
 /// Automatically load all `.lsp` / `.lisp` files in `scripts/` and `scripts/autoload/` on startup.
@@ -6890,6 +6915,173 @@ mod tests {
             assert_eq!(br.executed_commands.last().map(|s| s.as_str()), Some("ESC"));
             assert_eq!(br.active_host_command, None);
         }
+    }
+
+    #[test]
+    fn test_command_line_get_functions_without_dialogs() {
+        use ocs_plugin_api::host::{CommandStep, InteractiveInputKind};
+
+        let code = r#"
+            (defun c:cmdgettest (/ pt s1 s2 s3 n r k)
+              (setq pt (getpoint "\nFirst corner: "))
+              (setq s1 (getstring "\nWord: "))
+              (setq s2 (getstring T "\nSentence: "))
+              (setq s3 (getstring "\nDefault: "))
+              (initget 1)
+              (setq n (getint "\nCount: "))
+              (initget 6)
+              (setq r (getreal "\nRadius: "))
+              (initget 1 "Red Green Blue")
+              (setq k (getkword "\nColor: "))
+              (princ (strcat "\nRESULT=" s1 "|" s2 "|" s3 "|" (itoa n) "|" (rtos r 2 2) "|" k))
+              (princ)
+            )
+            (defun c:cmdgetstrdirect (/ s)
+              (setq s (getstring T "\nDirect: "))
+              (princ (strcat "\nDIRECT=" s))
+              (princ)
+            )
+        "#;
+
+        let (tx, rx) = std::sync::mpsc::channel();
+        let (worker_tx, _) = std::sync::mpsc::channel();
+        let _ = get_task_tx().send(LispTask::Eval {
+            code: code.to_string(),
+            resp: tx,
+            worker_tx,
+        });
+        let res = rx.recv().unwrap();
+        assert!(res.is_ok(), "eval should succeed: {:?}", res);
+
+        let (worker_tx, worker_rx) = std::sync::mpsc::channel();
+        let (done_tx, done_rx) = std::sync::mpsc::channel();
+        let _ = get_task_tx().send(LispTask::ExecuteCommand {
+            lisp_call: "(c:cmdgettest)".to_string(),
+            worker_tx,
+            done: done_tx,
+        });
+
+        let mut mock_host = crate::context::DebugHost::new(None);
+        let mut cmd = loop {
+            match worker_rx.recv().unwrap() {
+                WorkerMsg::HostCall(mut task) => task(&mut mock_host),
+                WorkerMsg::InteractiveStarted(c) => break c,
+                WorkerMsg::Finished(r) => panic!("Unexpected early finish: {:?}", r),
+            }
+        };
+
+        // 1. getpoint -> Point
+        assert!(cmd.modal_dialog().is_none(), "getpoint must not open a dialog");
+        assert_eq!(cmd.input_kind(), InteractiveInputKind::Point);
+        assert!(matches!(cmd.on_point([1.0, 2.0, 0.0]), CommandStep::NeedPoint));
+
+        // 2. getstring (has_spaces = false) -> FreeText so casing & literal text survive before space truncation
+        assert!(cmd.modal_dialog().is_none(), "getstring must not open a dialog");
+        assert_eq!(cmd.input_kind(), InteractiveInputKind::FreeText);
+        assert!(matches!(cmd.on_text_input("Hello World"), CommandStep::NeedPoint));
+
+        // 3. getstring (has_spaces = true) -> FreeText
+        assert!(cmd.modal_dialog().is_none(), "getstring T must not open a dialog");
+        assert_eq!(cmd.input_kind(), InteractiveInputKind::FreeText);
+        assert!(matches!(cmd.on_text_input("Mixed Case Words"), CommandStep::NeedPoint));
+
+        // 4. getstring bare Enter -> ""
+        assert!(cmd.modal_dialog().is_none(), "getstring bare Enter must not open a dialog");
+        assert_eq!(cmd.input_kind(), InteractiveInputKind::FreeText);
+        assert!(matches!(cmd.on_enter(), CommandStep::NeedPoint));
+
+        // 5. initget 1 + getint -> SingleToken with invalid retry & empty retry
+        assert!(cmd.modal_dialog().is_none(), "getint must not open a dialog");
+        assert_eq!(cmd.input_kind(), InteractiveInputKind::SingleToken);
+        assert!(matches!(cmd.on_text_input("abc"), CommandStep::NeedPoint));
+        assert!(cmd.modal_dialog().is_none());
+        assert_eq!(cmd.input_kind(), InteractiveInputKind::SingleToken);
+        assert!(matches!(cmd.on_enter(), CommandStep::NeedPoint));
+        assert!(cmd.modal_dialog().is_none());
+        assert_eq!(cmd.input_kind(), InteractiveInputKind::SingleToken);
+        assert!(matches!(cmd.on_text_input("7"), CommandStep::NeedPoint));
+
+        // 6. initget 6 + getreal -> SingleToken with zero rejected
+        assert!(cmd.modal_dialog().is_none(), "getreal must not open a dialog");
+        assert_eq!(cmd.input_kind(), InteractiveInputKind::SingleToken);
+        assert!(matches!(cmd.on_text_input("0"), CommandStep::NeedPoint));
+        assert!(cmd.modal_dialog().is_none());
+        assert_eq!(cmd.input_kind(), InteractiveInputKind::SingleToken);
+        assert!(matches!(cmd.on_text_input("2.5"), CommandStep::NeedPoint));
+
+        // 7. initget 1 keywords + getkword -> SingleToken with inline options prompt
+        assert!(cmd.modal_dialog().is_none(), "getkword must not open a dialog");
+        assert_eq!(cmd.input_kind(), InteractiveInputKind::SingleToken);
+        assert!(
+            cmd.prompt().contains("[Red/Green/Blue]"),
+            "Expected keyword options in prompt, got {:?}",
+            cmd.prompt()
+        );
+        let final_step = cmd.on_text_input("g");
+        match final_step {
+            CommandStep::Dispatch(dispatched) => {
+                let ticket = dispatched
+                    .strip_prefix(FLUSH_OUTPUT_COMMAND)
+                    .expect("expected LSPFLUSH dispatch")
+                    .trim();
+                flush_pending_command_output(&mut mock_host, ticket);
+            }
+            other => panic!("Expected Dispatch(LSPFLUSH ...), got {:?}", other),
+        }
+        done_rx.recv().unwrap();
+
+        let out = mock_host.captured_output.lock().unwrap().clone();
+        assert!(
+            out.iter().any(|l| l.contains("Requires an integer value.")),
+            "Expected retry hint for invalid getint in output: {:?}",
+            out
+        );
+        assert!(
+            out.iter().any(|l| l.contains("Value must be positive and nonzero.")),
+            "Expected retry hint for zero getreal in output: {:?}",
+            out
+        );
+        assert!(
+            out.iter().any(|l| l == "RESULT=Hello|Mixed Case Words||7|2.50|Green"),
+            "Expected formatted result line in output: {:?}",
+            out
+        );
+
+        // 8. Starting a command directly with (getstring ...) must start in FreeText with no dialog
+        let (worker_tx2, worker_rx2) = std::sync::mpsc::channel();
+        let (done_tx2, done_rx2) = std::sync::mpsc::channel();
+        let _ = get_task_tx().send(LispTask::ExecuteCommand {
+            lisp_call: "(c:cmdgetstrdirect)".to_string(),
+            worker_tx: worker_tx2,
+            done: done_tx2,
+        });
+        let mut mock_host2 = crate::context::DebugHost::new(None);
+        let mut cmd2 = loop {
+            match worker_rx2.recv().unwrap() {
+                WorkerMsg::HostCall(mut task) => task(&mut mock_host2),
+                WorkerMsg::InteractiveStarted(c) => break c,
+                WorkerMsg::Finished(r) => panic!("Unexpected early finish: {:?}", r),
+            }
+        };
+        assert!(cmd2.modal_dialog().is_none(), "Direct getstring must not open a dialog");
+        assert_eq!(cmd2.input_kind(), InteractiveInputKind::FreeText);
+        match cmd2.on_text_input("Direct Hello") {
+            CommandStep::Dispatch(dispatched) => {
+                let ticket = dispatched
+                    .strip_prefix(FLUSH_OUTPUT_COMMAND)
+                    .expect("expected LSPFLUSH dispatch")
+                    .trim();
+                flush_pending_command_output(&mut mock_host2, ticket);
+            }
+            other => panic!("Expected Dispatch(LSPFLUSH ...), got {:?}", other),
+        }
+        done_rx2.recv().unwrap();
+        let out2 = mock_host2.captured_output.lock().unwrap().clone();
+        assert!(
+            out2.iter().any(|l| l == "DIRECT=Direct Hello"),
+            "Expected DIRECT output, got: {:?}",
+            out2
+        );
     }
 }
 

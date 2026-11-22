@@ -7,7 +7,7 @@ author = "OpenCAD Contributor"
 license = "GPL-3.0-only"
 
 [opencad]
-api_version = 17
+api_version = 24
 ribbon_order = 150
 command_prefixes = ["OCAIDE", "LSP", "LISP", "LSPRUN", "LSPLIST", "LSPRELOAD", "LSPDIR", "LSPERR", "LISPERR", "APPLOAD", "LSPFLUSH"]
 xdata_apps = []

@@ -567,8 +567,11 @@ pub fn active_interactive() -> Option<Arc<LispInteractiveBridge>> {
     ACTIVE_INTERACTIVE.with(|cell| cell.borrow().clone())
 }
 
-/// Ensure an interactive bridge is active, creating and starting one on the host if not already running.
-pub fn ensure_interactive(initial_prompt: &str, is_entity_pick: bool) -> Result<Arc<LispInteractiveBridge>, String> {
+fn start_interactive_bridge(
+    initial_prompt: &str,
+    mode: crate::interactive::InteractionMode,
+    dialog: Option<ocs_plugin_api::dialog::DialogDef>,
+) -> Result<Arc<LispInteractiveBridge>, String> {
     crate::rust_lisp::flush_lisp_output();
     if let Some(bridge) = active_interactive() {
         return Ok(bridge);
@@ -579,12 +582,11 @@ pub fn ensure_interactive(initial_prompt: &str, is_entity_pick: bool) -> Result<
         let snapshot = h.document().clone();
         (next, Some(snapshot))
     }).unwrap_or_else(|_| (1, None));
-    let mode = if is_entity_pick {
-        crate::interactive::InteractionMode::EntityPick
+    let (bridge, cmd) = if let Some(def) = dialog {
+        LispInteractiveBridge::new_with_dialog(initial_prompt.to_string(), base_handle, doc_snapshot, def)
     } else {
-        crate::interactive::InteractionMode::Point
+        LispInteractiveBridge::new(initial_prompt.to_string(), mode, base_handle, doc_snapshot)
     };
-    let (bridge, cmd) = LispInteractiveBridge::new(initial_prompt.to_string(), mode, base_handle, doc_snapshot);
     let bridge_clone = Arc::clone(&bridge);
 
     ACTIVE_INTERACTIVE.with(|cell| {
@@ -604,34 +606,25 @@ pub fn ensure_interactive(initial_prompt: &str, is_entity_pick: bool) -> Result<
     Ok(bridge)
 }
 
+/// Ensure an interactive bridge is active with an explicit interaction mode.
+pub fn ensure_interactive_with_mode(
+    initial_prompt: &str,
+    mode: crate::interactive::InteractionMode,
+) -> Result<Arc<LispInteractiveBridge>, String> {
+    start_interactive_bridge(initial_prompt, mode, None)
+}
+
+/// Ensure an interactive bridge is active, creating and starting one on the host if not already running.
+pub fn ensure_interactive(initial_prompt: &str, is_entity_pick: bool) -> Result<Arc<LispInteractiveBridge>, String> {
+    let mode = if is_entity_pick {
+        crate::interactive::InteractionMode::EntityPick
+    } else {
+        crate::interactive::InteractionMode::Point
+    };
+    start_interactive_bridge(initial_prompt, mode, None)
+}
+
 /// Ensure an interactive bridge with an initial modal dialog is active.
 pub fn ensure_interactive_dialog(initial_prompt: &str, dialog: ocs_plugin_api::dialog::DialogDef) -> Result<Arc<LispInteractiveBridge>, String> {
-    crate::rust_lisp::flush_lisp_output();
-    if let Some(bridge) = active_interactive() {
-        return Ok(bridge);
-    }
-
-    let (base_handle, doc_snapshot) = with_host(|h| {
-        let next = h.document().next_handle();
-        let snapshot = h.document().clone();
-        (next, Some(snapshot))
-    }).unwrap_or_else(|_| (1, None));
-    let (bridge, cmd) = LispInteractiveBridge::new_with_dialog(initial_prompt.to_string(), base_handle, doc_snapshot, dialog);
-    let bridge_clone = Arc::clone(&bridge);
-
-    ACTIVE_INTERACTIVE.with(|cell| {
-        *cell.borrow_mut() = Some(bridge_clone);
-    });
-
-    let tx_opt = WORKER_TX.with(|cell| cell.borrow().clone());
-    if let Some(tx) = tx_opt {
-        tx.send(WorkerMsg::InteractiveStarted(cmd))
-            .map_err(|e| e.to_string())?;
-    } else {
-        with_host(|h| {
-            h.start_interactive(cmd);
-        }).map_err(|e| e.to_string())?;
-    }
-
-    Ok(bridge)
+    start_interactive_bridge(initial_prompt, crate::interactive::InteractionMode::Point, Some(dialog))
 }

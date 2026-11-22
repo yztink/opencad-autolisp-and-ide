@@ -5,6 +5,8 @@ use ocs_plugin_api::host::{CommandStep, Document as CadDocument, EntityType, Han
 #[derive(Debug, Clone)]
 pub enum InteractiveResponse {
     Point([f64; 3]),
+    Text(String),
+    Enter,
     EntityPick { handle: u64, pt: [f64; 3] },
     Selection(Vec<u64>),
     Dialog(ocs_plugin_api::dialog::DialogResponse),
@@ -20,6 +22,7 @@ pub enum InteractionMode {
     Point,
     EntityPick,
     Selection,
+    Text { free_text: bool },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -710,6 +713,7 @@ impl InteractiveCoordinator {
                 let _ = tx.send(InteractiveResponse::Point(pt));
                 self.wait_for_step()
             }
+            InteractionMode::Text { .. } => CommandStep::NeedPoint,
         }
     }
 
@@ -776,11 +780,44 @@ impl InteractiveCoordinator {
                 dbg_trace(&format!("handle_enter: sending Selection with {} items to worker", list.len()));
                 let _ = tx.send(InteractiveResponse::Selection(list));
             }
+            InteractionMode::Text { .. } => {
+                dbg_trace("handle_enter: sending Enter to worker");
+                let _ = tx.send(InteractiveResponse::Enter);
+            }
             _ => {
                 dbg_trace("handle_enter: sending Cancelled to worker");
                 let _ = tx.send(InteractiveResponse::Cancelled);
             }
         }
+        self.wait_for_step()
+    }
+
+    pub fn input_kind(&self) -> ocs_plugin_api::host::InteractiveInputKind {
+        match self.mode.lock().ok().map(|m| *m) {
+            Some(InteractionMode::Text { free_text: true }) => {
+                ocs_plugin_api::host::InteractiveInputKind::FreeText
+            }
+            Some(InteractionMode::Text { free_text: false }) => {
+                ocs_plugin_api::host::InteractiveInputKind::SingleToken
+            }
+            _ => ocs_plugin_api::host::InteractiveInputKind::Point,
+        }
+    }
+
+    pub fn handle_text_input(&self, text: &str) -> CommandStep {
+        dbg_trace(&format!("handle_text_input: called with text={:?}", text));
+        if self.is_done() || self.get_error().is_some() {
+            return CommandStep::Cancel;
+        }
+        let is_text = matches!(
+            self.mode.lock().ok().map(|m| *m),
+            Some(InteractionMode::Text { .. })
+        );
+        if !is_text {
+            return CommandStep::NeedPoint;
+        }
+        let tx = self.tx.lock().unwrap_or_else(|e| e.into_inner());
+        let _ = tx.send(InteractiveResponse::Text(text.to_string()));
         self.wait_for_step()
     }
 
@@ -843,6 +880,12 @@ impl InteractiveCommand for CoordinatorProxy {
     }
     fn take_pending_panel_updates(&mut self) -> Vec<(String, std::collections::HashMap<String, ocs_plugin_api::dialog::DialogValue>)> {
         self.0.take_pending_panel_updates()
+    }
+    fn input_kind(&self) -> ocs_plugin_api::host::InteractiveInputKind {
+        self.0.input_kind()
+    }
+    fn on_text_input(&mut self, text: &str) -> CommandStep {
+        self.0.handle_text_input(text)
     }
 }
 
@@ -1126,6 +1169,26 @@ impl LispInteractiveBridge {
 
     pub fn show_dialog(&self, dialog: ocs_plugin_api::dialog::DialogDef) -> ocs_plugin_api::dialog::DialogResponse {
         self.show_dialog_interactive(dialog, |_| ocs_plugin_api::dialog::DialogActionResponse::None)
+    }
+
+    pub fn get_text(&self, prompt: &str, free_text: bool) -> Option<String> {
+        if !prompt.is_empty() {
+            self.coordinator.set_prompt(prompt.to_string());
+        }
+        self.coordinator.set_mode(InteractionMode::Text { free_text });
+        self.check_advance_step();
+
+        dbg_trace(&format!("get_text: prompt={:?}, free_text={}, waiting on rx.recv()...", prompt, free_text));
+        let debug_active = self.switch_focus_to_cad_for_input();
+        let rx = self.rx.lock().unwrap_or_else(|e| e.into_inner());
+        let res = match rx.recv() {
+            Ok(InteractiveResponse::Text(text)) => Some(text),
+            Ok(InteractiveResponse::Enter) => Some(String::new()),
+            _ => None,
+        };
+        drop(rx);
+        self.restore_focus_to_ide_after_input(debug_active);
+        res
     }
 
     pub fn finish(&self) {
