@@ -58,8 +58,8 @@ jobs:
       - name: Checkout OpenCADStudio
         uses: actions/checkout@v4
         with:
-          repository: yztink/OpenCADStudio
-          ref: b314ee86f7bc02c15008ff34182551fc8e575da2
+          repository: HakanSeven12/OpenCADStudio
+          ref: v2026.47
           path: OpenCADStudio
 
       - name: Redirect deleted HakanSeven12/acadrust URL to hakanaktt/acadrust
