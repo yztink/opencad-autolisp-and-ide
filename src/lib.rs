@@ -79,7 +79,8 @@ impl BuiltinPlugin for AutoLispPlugin {
             HostNotification::DocumentChangedV4 { tab_id, .. }
             | HostNotification::CommandStateChanged { tab_id, .. }
             | HostNotification::DrawingChanged { tab_id, .. }
-            | HostNotification::DocumentChangedRegions { tab_id, .. } => {
+            | HostNotification::DocumentChangedRegions { tab_id, .. }
+            | HostNotification::DocumentChangedDelta { tab_id, .. } => {
                 context::set_active_tab_id(tab_id);
             }
             HostNotification::PanelAction { panel_id, control_id, action, value } => {
@@ -2496,6 +2497,35 @@ assert res_state["schedule_len"] == 0, f"Expected 0 after remove_row, got {res_s
             "Expected LSPERR to output function definition, got: {:?}",
             host.outputs
         );
+    }
+
+    #[test]
+    fn test_api_v28_manifest_and_document_changed_delta_tracks_tab() {
+        let manifest = include_str!("../plugin.toml");
+        let expected_line = format!("api_version = {}", ocs_plugin_api::API_VERSION);
+        assert!(
+            manifest.lines().any(|line| line.trim() == expected_line),
+            "plugin.toml must declare `{expected_line}` to match ocs_plugin_api::API_VERSION"
+        );
+        assert!(ocs_plugin_api::API_VERSION >= 28);
+
+        let mut plugin = AutoLispPlugin;
+        let prev_tab = crate::context::get_active_tab_id();
+        plugin.on_notification(
+            None,
+            HostNotification::DocumentChangedDelta {
+                tab_id: 987654,
+                version: 1,
+                added: Vec::new(),
+                modified: Vec::new(),
+                deleted: Vec::new(),
+                records: Vec::new(),
+                snapshot: None,
+                full_refresh_required: false,
+            },
+        );
+        assert_eq!(crate::context::get_active_tab_id(), 987654);
+        crate::context::set_active_tab_id(prev_tab);
     }
 }
 
