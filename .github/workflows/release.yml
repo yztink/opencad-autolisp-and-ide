@@ -44,16 +44,16 @@ jobs:
             libxkbcommon-dev libwayland-dev libfontconfig1-dev libfreetype6-dev
 
       # 1. Checkout all three repos side-by-side to satisfy relative Cargo path dependencies
-      - name: Checkout opencad-autolisp-and-ide
+      - name: Checkout opencad-lisp-and-ide
         uses: actions/checkout@v4
         with:
-          path: opencad-autolisp-and-ide
+          path: opencad-lisp-and-ide
 
-      - name: Checkout opencad-autolisp-engine
+      - name: Checkout opencad-lisp-engine
         uses: actions/checkout@v4
         with:
-          repository: yztink/opencad-autolisp-engine
-          path: opencad-autolisp-engine
+          repository: yztink/opencad-lisp-engine
+          path: opencad-lisp-engine
 
       - name: Checkout OpenCADStudio
         uses: actions/checkout@v4
@@ -74,18 +74,18 @@ jobs:
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: opencad-autolisp-and-ide -> target
+          workspaces: opencad-lisp-and-ide -> target
 
       # 3. Build release binaries (lean plugin library + standalone IDE GUI)
       - name: Build release binaries
-        working-directory: opencad-autolisp-and-ide
+        working-directory: opencad-lisp-and-ide
         shell: bash
         run: |
           if [ "${{ runner.os }}" = "Linux" ]; then
             export RUSTFLAGS="${RUSTFLAGS:-} -C link-arg=-Wl,-rpath,\$ORIGIN -C link-arg=-Wl,-z,origin"
           fi
           cargo build --release --lib
-          cargo build --release --bin opencad_autolisp_ide --features ide-gui
+          cargo build --release --bin opencad_lisp_ide --features ide-gui
 
       # 4. Stage release assets into a zip bundle and loose assets
       - name: Stage release package
@@ -95,24 +95,24 @@ jobs:
           mkdir -p dist
 
           # Copy plugin.toml, INSTALL instructions, and tutorials
-          cp opencad-autolisp-and-ide/plugin.toml bundle/plugin.toml
-          cp opencad-autolisp-and-ide/INSTALL.txt bundle/INSTALL.txt
-          cp -r opencad-autolisp-and-ide/tutorials bundle/tutorials
+          cp opencad-lisp-and-ide/plugin.toml bundle/plugin.toml
+          cp opencad-lisp-and-ide/INSTALL.txt bundle/INSTALL.txt
+          cp -r opencad-lisp-and-ide/tutorials bundle/tutorials
 
           # Copy plugin library (named for OpenCAD Studio)
-          cp opencad-autolisp-and-ide/target/release/*opencad_autolisp.${{ matrix.ext }} "bundle/opencad.autolisp_and_ide.${{ matrix.ext }}"
+          cp opencad-lisp-and-ide/target/release/*opencad_lisp.${{ matrix.ext }} "bundle/opencad.lisp_and_ide.${{ matrix.ext }}"
 
           # Copy IDE executable if present
-          if [ -f "opencad-autolisp-and-ide/target/release/opencad_autolisp_ide${{ matrix.exe_ext }}" ]; then
-            cp "opencad-autolisp-and-ide/target/release/opencad_autolisp_ide${{ matrix.exe_ext }}" "bundle/opencad_autolisp_ide${{ matrix.exe_ext }}"
+          if [ -f "opencad-lisp-and-ide/target/release/opencad_lisp_ide${{ matrix.exe_ext }}" ]; then
+            cp "opencad-lisp-and-ide/target/release/opencad_lisp_ide${{ matrix.exe_ext }}" "bundle/opencad_lisp_ide${{ matrix.exe_ext }}"
           fi
 
           # Create all-in-one ZIP bundle for this platform: <plugin_id>-<platform>.zip
-          (cd bundle && python -m zipfile -c "../dist/opencad.autolisp_and_ide-${{ matrix.platform }}.zip" *)
+          (cd bundle && python -m zipfile -c "../dist/opencad.lisp_and_ide-${{ matrix.platform }}.zip" *)
 
           # Also include standalone plugin.toml in dist/ so OpenCAD Studio's Plugin Manager
           # can inspect release compatibility before downloading the platform zip bundle
-          cp opencad-autolisp-and-ide/plugin.toml dist/plugin.toml
+          cp opencad-lisp-and-ide/plugin.toml dist/plugin.toml
 
       # 5. Upload all artifacts to the GitHub Release
       - name: Publish Release Assets

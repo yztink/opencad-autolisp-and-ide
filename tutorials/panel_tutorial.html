@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tutorial 1: Side Panel — OpenCAD AutoLISP</title>
+  <title>Tutorial 1: Side Panel — OpenCAD LISP</title>
   <style>
     :root {
       --bg: #0f1419;
@@ -64,56 +64,56 @@
     </nav>
 
     <h1>Tutorial 1: Programming a Side Panel</h1>
-    <p>This tutorial builds a dockable AutoLISP side panel where users enter X/Y coordinates, add them to a table, pick a color and entity type (<strong>Lines</strong> or <strong>Circles</strong>), and draw them into the active drawing.</p>
+    <p>This tutorial builds a dockable OpenCAD LISP side panel where users enter X/Y coordinates, add them to a table, pick a color and entity type (<strong>Lines</strong> or <strong>Circles</strong>), and draw them into the active drawing.</p>
 
     <h2>Step 1: Register the Panel Layout</h2>
-    <p>Use <code>oca-panel-register</code> to define the panel ID, title, options (such as <code>width</code>, <code>command</code>, and optional <code>style</code>), and controls. AutoLISP panels render in the dialog-like form style by default (pass <code>(style . "palette")</code> in the options alist if you want the compact Properties-grid style). Each button uses an explicit <code>'((action . "(func)"))</code> so clicking it evaluates a regular AutoLISP <code>defun</code> directly.</p>
+    <p>Use <code>oc-panel-register</code> to define the panel ID, title, options (such as <code>width</code>, <code>command</code>, and optional <code>style</code>), and controls. OpenCAD LISP panels render in the dialog-like form style by default (pass <code>(style . "palette")</code> in the options alist if you want the compact Properties-grid style). Each button uses an explicit <code>'((action . "(func)"))</code> so clicking it evaluates a regular OpenCAD LISP <code>defun</code> directly.</p>
 <pre><code>(defun c:coordpanel ()
-  (oca-panel-register "coord_panel" "Coordinate Drawer"
+  (oc-panel-register "coord_panel" "Coordinate Drawer"
     '((width . 320) (command . "COORDPANEL"))
 
-    (oca-info "lbl_status" "Enter X, Y and click Add Point.")
+    (oc-info "lbl_status" "Enter X, Y and click Add Point.")
 
-    (oca-row
-      (oca-number "num_x" "X" 0.0)
-      (oca-number "num_y" "Y" 0.0)
+    (oc-row
+      (oc-number "num_x" "X" 0.0)
+      (oc-number "num_y" "Y" 0.0)
     )
-    (oca-button "btn_add" "Add Point" '((action . "(coord-panel-add)")))
+    (oc-button "btn_add" "Add Point" '((action . "(coord-panel-add)")))
 
-    (oca-table "tbl_pts" "Coordinates"
+    (oc-table "tbl_pts" "Coordinates"
       '("X" "Y")
       '()
       '((allow_add . T) (allow_delete . T))
     )
 
-    (oca-choice "cmb_color" "Color" '("Red" "Yellow" "Green" "Cyan" "Blue" "White") "Red")
-    (oca-choice "cmb_type" "Entity Type" '("Lines" "Circles") "Lines")
+    (oc-choice "cmb_color" "Color" '("Red" "Yellow" "Green" "Cyan" "Blue" "White") "Red")
+    (oc-choice "cmb_type" "Entity Type" '("Lines" "Circles") "Lines")
 
-    (oca-row
-      (oca-button "btn_draw" "Draw Entities" '((action . "(coord-panel-draw)")))
-      (oca-button "btn_clear" "Clear" '((action . "clear")))
+    (oc-row
+      (oc-button "btn_draw" "Draw Entities" '((action . "(coord-panel-draw)")))
+      (oc-button "btn_clear" "Clear" '((action . "clear")))
     )
   )
-  (oca-panel-toggle "coord_panel" T)
+  (oc-panel-toggle "coord_panel" T)
   (princ)
 )</code></pre>
 
     <div class="note">
-      <strong>Why use <code>'((action . "(coord-panel-add)"))</code>?</strong> Side panel buttons with an S-expression <code>action</code> dispatch straight to AutoLISP, allowing any normal <code>defun</code> to run without creating extra global <code>c:</code> commands.
+      <strong>Why use <code>'((action . "(coord-panel-add)"))</code>?</strong> Side panel buttons with an S-expression <code>action</code> dispatch straight to OpenCAD LISP, allowing any normal <code>defun</code> to run without creating extra global <code>c:</code> commands.
     </div>
 
     <h2>Step 2: Add Coordinates to the Table</h2>
-    <p>Read the current <code>num_x</code>, <code>num_y</code>, and <code>tbl_pts</code> values with <code>oca-panel-get</code>, append a new <code>(x-str y-str)</code> row, and push the updated table back using <code>oca-panel-update</code>.</p>
+    <p>Read the current <code>num_x</code>, <code>num_y</code>, and <code>tbl_pts</code> values with <code>oc-panel-get</code>, append a new <code>(x-str y-str)</code> row, and push the updated table back using <code>oc-panel-update</code>.</p>
 <pre><code>(defun coord-panel-add (/ x y tbl new-row new-tbl)
-  (setq x (oca-panel-get "coord_panel" "num_x"))
-  (setq y (oca-panel-get "coord_panel" "num_y"))
-  (setq tbl (oca-panel-get "coord_panel" "tbl_pts"))
+  (setq x (oc-panel-get "coord_panel" "num_x"))
+  (setq y (oc-panel-get "coord_panel" "num_y"))
+  (setq tbl (oc-panel-get "coord_panel" "tbl_pts"))
   (if (not tbl) (setq tbl '()))
 
   (setq new-row (list (rtos (if x x 0.0) 2 4) (rtos (if y y 0.0) 2 4)))
   (setq new-tbl (append tbl (list new-row)))
 
-  (oca-panel-update "coord_panel"
+  (oc-panel-update "coord_panel"
     (list
       (cons "tbl_pts" new-tbl)
       (cons "lbl_status" (strcat "Points in table: " (itoa (length new-tbl))))
@@ -160,19 +160,19 @@
 )
 
 (defun coord-panel-draw (/ rows pts col etype)
-  (setq rows  (oca-panel-get "coord_panel" "tbl_pts"))
-  (setq col   (oca-panel-get "coord_panel" "cmb_color"))
-  (setq etype (oca-panel-get "coord_panel" "cmb_type"))
+  (setq rows  (oc-panel-get "coord_panel" "tbl_pts"))
+  (setq col   (oc-panel-get "coord_panel" "cmb_color"))
+  (setq etype (oc-panel-get "coord_panel" "cmb_type"))
   (setq pts   (coord-rows->pts (if rows rows '())))
 
   (cond
     ((null pts)
-     (oca-panel-update "coord_panel" '((lbl_status . "Add at least one point first."))))
+     (oc-panel-update "coord_panel" '((lbl_status . "Add at least one point first."))))
     ((and (= etype "Lines") (&lt; (length pts) 2))
-     (oca-panel-update "coord_panel" '((lbl_status . "Lines need at least 2 points."))))
+     (oc-panel-update "coord_panel" '((lbl_status . "Lines need at least 2 points."))))
     (T
      (coord-draw-entities pts (if col col "Red") (if etype etype "Lines"))
-     (oca-panel-update "coord_panel"
+     (oc-panel-update "coord_panel"
        (list (cons "lbl_status" (strcat "Drew " etype " in " col ".")))))
   )
   (princ)

@@ -1,9 +1,9 @@
 ;; =============================================================================
-;; OpenCAD Studio Sample AutoLISP Routine
-;; Demonstrates standard AutoLISP syntax + entity creation via entmake.
+;; OpenCAD Studio Sample OpenCAD LISP Routine
+;; Demonstrates standard OpenCAD LISP syntax + entity creation via entmake.
 ;; =============================================================================
 
-;; 1. Standard AutoLISP function: Draw a circle with a center and radius
+;; 1. Standard OpenCAD LISP function: Draw a circle with a center and radius
 (defun draw-target (center radius / p1 p2 p3 p4)
   (princ "\nDrawing crosshair target...")
   
@@ -31,7 +31,7 @@
 ;; 2. Register a top-level OpenCAD Studio command: TARGET
 ;; Type 'TARGET' in OpenCAD Studio to invoke this command directly!
 (defun c:target (/ pt rad)
-  (princ "\n=== AutoLISP TARGET Command ===")
+  (princ "\n=== OpenCAD LISP TARGET Command ===")
   (setq pt  (getpoint "\nSpecify center point: ")
         pt  (if (null pt) '(0.0 0.0 0.0) pt)
         rad (getdist pt "\nSpecify target radius <25.0>: ")

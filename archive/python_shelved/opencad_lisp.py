@@ -1,12 +1,12 @@
 # ============================================================================
-# DO NOT EDIT — LEGACY PYTHON AUTOLISP PROTOTYPE (SHELVED / OBSOLETE).
-# This file is NOT used for AutoLISP execution.
-# All AutoLISP execution goes straight to the pure-Rust opencad-lisp engine:
-#   - ../opencad-autolisp-engine (crates/lisp-core, crates/lisp-cad)
+# DO NOT EDIT — LEGACY PYTHON OPENCAD LISP PROTOTYPE (SHELVED / OBSOLETE).
+# This file is NOT used for OpenCAD LISP execution.
+# All OpenCAD LISP execution goes straight to the pure-Rust opencad-lisp engine:
+#   - ../opencad-lisp-engine (crates/lisp-core, crates/lisp-cad)
 #   - src/rust_lisp.rs
 # ============================================================================
 """
-OpenCAD AutoLISP Engine (autolisp.py) — LEGACY / SHELVED
+OpenCAD LISP Engine (opencad_lisp.py) — LEGACY / SHELVED
 """
 
 import sys
@@ -21,7 +21,7 @@ from typing import Any, List, Tuple, Dict, Optional, Callable
 # ─────────────────────────────────────────────────────────────────────────────
 
 class Symbol:
-    """Case-insensitive AutoLISP symbol."""
+    """Case-insensitive OpenCAD LISP symbol."""
     __slots__ = ("name",)
 
     def __init__(self, name: str):
@@ -42,7 +42,7 @@ class Symbol:
 
 
 class Cons:
-    """AutoLISP cons cell (car . cdr) used for lists and dotted pairs (e.g. DXF)."""
+    """OpenCAD LISP cons cell (car . cdr) used for lists and dotted pairs (e.g. DXF)."""
     __slots__ = ("car", "cdr")
 
     def __init__(self, car: Any, cdr: Any = None):
@@ -74,7 +74,7 @@ class Cons:
 
 
 class LispNil:
-    """AutoLISP nil singleton representing falsity and the empty list."""
+    """OpenCAD LISP nil singleton representing falsity and the empty list."""
     def __repr__(self) -> str:
         return "nil"
 
@@ -86,7 +86,7 @@ class LispNil:
 
 
 class LispT:
-    """AutoLISP T singleton representing truth."""
+    """OpenCAD LISP T singleton representing truth."""
     def __repr__(self) -> str:
         return "T"
 
@@ -102,7 +102,7 @@ T = LispT()
 
 
 def lisp_repr(val: Any) -> str:
-    """Format a Python/Lisp value into AutoLISP representation."""
+    """Format a Python/Lisp value into OpenCAD LISP representation."""
     if val is None or val is NIL:
         return "nil"
     if val is True or val is T:
@@ -130,7 +130,7 @@ def lisp_repr(val: Any) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def tokenize(source: str) -> List[str]:
-    """Tokenize AutoLISP source code into syntactic tokens."""
+    """Tokenize OpenCAD LISP source code into syntactic tokens."""
     tokens = []
     i = 0
     n = len(source)
@@ -227,7 +227,7 @@ def parse_atom(token: str) -> Any:
 def read_from_tokens(tokens: List[str]) -> Any:
     """Read a single S-expression from the token stream."""
     if not tokens:
-        raise SyntaxError("Unexpected EOF while parsing AutoLISP")
+        raise SyntaxError("Unexpected EOF while parsing OpenCAD LISP")
 
     token = tokens.pop(0)
 
@@ -329,11 +329,11 @@ class Env:
 
 
 class LispFunction:
-    """User-defined AutoLISP function closure created by DEFUN or LAMBDA."""
+    """User-defined OpenCAD LISP function closure created by DEFUN or LAMBDA."""
     def __init__(self, name: str, params: List[Symbol], locals_: List[Symbol], body: List[Any], env: Env):
         self.name = name
         self.__name__ = name
-        self.__doc__ = f"AutoLISP function {name}"
+        self.__doc__ = f"OpenCAD LISP function {name}"
         self.params = params
         self.locals = locals_
         self.body = body
@@ -353,7 +353,7 @@ class LispFunction:
         return result
 
     def __repr__(self) -> str:
-        return f"<AutoLISP-Function {self.name}>"
+        return f"<OpenCAD LISP-Function {self.name}>"
 
 
 def lisp_eval(x: Any, env: Env) -> Any:
@@ -409,7 +409,7 @@ def lisp_eval(x: Any, env: Env) -> Any:
             func = LispFunction(fn_name, params, locals_, body, env)
             env.set(fn_name, func)
 
-            # AutoLISP SPECIAL: If name starts with C:, register as top-level CAD command!
+            # OpenCAD LISP SPECIAL: If name starts with C:, register as top-level CAD command!
             if fn_name.startswith("C:"):
                 cmd_name = fn_name[2:]
                 register_cad_command(cmd_name, func)
@@ -528,11 +528,11 @@ def lisp_eval(x: Any, env: Env) -> Any:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 4. Standard AutoLISP Built-ins Library
+# 4. Standard OpenCAD LISP Built-ins Library
 # ─────────────────────────────────────────────────────────────────────────────
 
 def make_global_env() -> Env:
-    """Instantiate a base AutoLISP environment loaded with standard primitives."""
+    """Instantiate a base OpenCAD LISP environment loaded with standard primitives."""
     env = Env()
 
     # Literals
@@ -797,8 +797,8 @@ def make_global_env() -> Env:
     env.set(Symbol("PROMPT"), lambda msg: _princ(msg))
 
     # ── Version Query ──
-    env.set(Symbol("VER"), lambda: "AutoLISP 2026 (Python fallback engine)")
-    env.set(Symbol("VL-VERSION"), lambda: "AutoLISP 2026 (Python fallback engine)")
+    env.set(Symbol("VER"), lambda: "OpenCAD LISP 2026 (Python fallback engine)")
+    env.set(Symbol("VL-VERSION"), lambda: "OpenCAD LISP 2026 (Python fallback engine)")
     env.set(Symbol("LISP-IMPLEMENTATION-TYPE"), lambda: "Python fallback")
 
     # ── Python Interoperability ──
@@ -814,7 +814,7 @@ def make_global_env() -> Env:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def lisp_coerce_to_python(val: Any) -> Any:
-    """Coerce an AutoLISP data type to a clean Python equivalent."""
+    """Coerce an OpenCAD LISP data type to a clean Python equivalent."""
     if val is NIL or isinstance(val, LispNil):
         return None
     if val is T or isinstance(val, LispT):
@@ -833,7 +833,7 @@ def lisp_coerce_to_python(val: Any) -> Any:
 
 
 def py_coerce_to_lisp(val: Any) -> Any:
-    """Coerce a Python return value to an AutoLISP equivalent."""
+    """Coerce a Python return value to an OpenCAD LISP equivalent."""
     if val is None:
         return NIL
     if val is True:
@@ -849,7 +849,7 @@ def py_coerce_to_lisp(val: Any) -> Any:
 def create_lisp_wrapper(py_func: Callable) -> Callable:
     """Wrap a Python function with automatic argument and return coercion."""
     def wrapper(*lisp_args):
-        # Coerce AutoLISP arguments to Python types
+        # Coerce OpenCAD LISP arguments to Python types
         py_args = [lisp_coerce_to_python(arg) for arg in lisp_args]
         res = py_func(*py_args)
         return py_coerce_to_lisp(res)
@@ -858,7 +858,7 @@ def create_lisp_wrapper(py_func: Callable) -> Callable:
     return wrapper
 
 
-AUTOLISP_STANDARD_ALIASES = {
+OPENCAD_LISP_STANDARD_ALIASES = {
     "get_point": "GETPOINT",
     "getpoint": "GETPOINT",
     "get_dist": "GETDIST",
@@ -884,7 +884,7 @@ AUTOLISP_STANDARD_ALIASES = {
 def auto_bind_module(module: Any, env: Env, prefix: str = "CAD:"):
     """
     Automatically inspect a module (like `opencad` or `cad`) and export every
-    callable function into the AutoLISP environment:
+    callable function into the OpenCAD LISP environment:
       1. Snake-case to Kebab-case (e.g. `add_line` -> `(add-line ...)` and `(cad:add-line ...)`)
       2. Standard CAD aliases (e.g. `get_point` -> `(getpoint ...)`)
     """
@@ -909,8 +909,8 @@ def auto_bind_module(module: Any, env: Env, prefix: str = "CAD:"):
 
             # 3. Standard CAD alias if applicable
             clean_name = attr_name.lower()
-            if clean_name in AUTOLISP_STANDARD_ALIASES:
-                alias = AUTOLISP_STANDARD_ALIASES[clean_name]
+            if clean_name in OPENCAD_LISP_STANDARD_ALIASES:
+                alias = OPENCAD_LISP_STANDARD_ALIASES[clean_name]
                 env.set(Symbol(alias), wrapper)
 
 
@@ -923,7 +923,7 @@ _GLOBAL_ENV = None
 
 
 def register_cad_command(name: str, func: Callable):
-    """Register an AutoLISP C:COMMAND as an OpenCAD Studio command."""
+    """Register an OpenCAD LISP C:COMMAND as an OpenCAD Studio command."""
     global _GLOBAL_CAD_API
     cmd_name = name.upper()
     if cmd_name.startswith("C:"):
@@ -940,7 +940,7 @@ def register_cad_command(name: str, func: Callable):
         return func(*call_args)
 
     cmd_wrapper.__name__ = cmd_name
-    cmd_wrapper.__doc__ = getattr(func, "__doc__", f"AutoLISP command {cmd_name}")
+    cmd_wrapper.__doc__ = getattr(func, "__doc__", f"OpenCAD LISP command {cmd_name}")
 
     reg_fn = None
     if _GLOBAL_CAD_API is not None:
@@ -960,10 +960,10 @@ def register_cad_command(name: str, func: Callable):
                     break
     if reg_fn is not None:
         try:
-            reg_fn(cmd_wrapper, name=cmd_name, description=f"AutoLISP command {cmd_name}")
+            reg_fn(cmd_wrapper, name=cmd_name, description=f"OpenCAD LISP command {cmd_name}")
         except TypeError:
             try:
-                reg_fn(cmd_name, cmd_wrapper, f"AutoLISP command {cmd_name}")
+                reg_fn(cmd_name, cmd_wrapper, f"OpenCAD LISP command {cmd_name}")
             except TypeError:
                 try:
                     reg_fn(cmd_name, cmd_wrapper)
@@ -976,7 +976,7 @@ def register_cad_command(name: str, func: Callable):
                 mod = sys.modules[mod_name]
                 if hasattr(mod, "_register_host_alias"):
                     try:
-                        mod._register_host_alias(cmd_name, f"AutoLISP command {cmd_name}")
+                        mod._register_host_alias(cmd_name, f"OpenCAD LISP command {cmd_name}")
                     except Exception:
                         pass
 
@@ -1019,7 +1019,7 @@ def _get_rust_engine():
         # 3. Inside OpenCADStudio AppData directory
         os.path.normpath(os.path.join(appdata, "OpenCADStudio", "plugins", "opencad.pyrunner", "bin", "opencad_lisp.dll")) if appdata else "",
         os.path.normpath(os.path.join(appdata, "OpenCADStudio", "opencad_lisp.dll")) if appdata else "",
-        # 4. Dev relative paths from autolisp.py or plugin root
+        # 4. Dev relative paths from opencad_lisp.py or plugin root
         os.path.normpath(os.path.join(base_dir, "..", "..", "opencad-lisp", "target", "release", "opencad_lisp.dll")),
         os.path.normpath(os.path.join(base_dir, "..", "..", "opencad-lisp", "target", "debug", "opencad_lisp.dll")),
         os.path.normpath(os.path.join(base_dir, "..", "bin", "opencad_lisp.dll")),
@@ -1078,7 +1078,7 @@ def _get_rust_engine():
                     _RUST_DLL_PATH = dll_path
                     return _RUST_DLL, _RUST_ENGINE
             except Exception as e:
-                sys.stderr.write(f"[AutoLISP] Failed loading DLL at {dll_path}: {e}\n")
+                sys.stderr.write(f"[OpenCAD LISP] Failed loading DLL at {dll_path}: {e}\n")
 
     return None, None
 
@@ -1090,7 +1090,7 @@ def is_rust_engine_loaded() -> bool:
 
 
 def get_engine_info() -> Dict[str, Any]:
-    """Return information about the active AutoLISP engine."""
+    """Return information about the active OpenCAD LISP engine."""
     dll, engine = _get_rust_engine()
     if dll and engine:
         return {
@@ -1102,15 +1102,15 @@ def get_engine_info() -> Dict[str, Any]:
         }
     return {
         "engine": "python_fallback",
-        "implementation": "OpenCAD AutoLISP (Python)",
+        "implementation": "OpenCAD LISP (Python)",
         "version": "1.0",
         "dll_path": None,
         "is_fallback": True,
     }
 
 
-def init_autolisp(cad_api: Any) -> Env:
-    """Initialize the AutoLISP engine with the live OpenCAD Python API."""
+def init_opencad_lisp(cad_api: Any) -> Env:
+    """Initialize the OpenCAD LISP engine with the live OpenCAD Python API."""
     global _GLOBAL_CAD_API, _GLOBAL_ENV
     _GLOBAL_CAD_API = cad_api
     env = get_global_env()
@@ -1121,7 +1121,7 @@ def init_autolisp(cad_api: Any) -> Env:
 
 
 def eval_rust_lisp(code: str) -> Any:
-    """Evaluate AutoLISP code using the native Rust opencad_lisp.dll engine."""
+    """Evaluate OpenCAD LISP code using the native Rust opencad_lisp.dll engine."""
     dll, engine = _get_rust_engine()
     if not (dll and engine and _CTYPES):
         raise RuntimeError("opencad_lisp.dll is not loaded")
@@ -1146,12 +1146,12 @@ def eval_rust_lisp(code: str) -> Any:
         return val_str
     else:
         err_msg = buf.value.decode("utf-8", errors="replace")
-        raise RuntimeError(f"AutoLISP Error: {err_msg}")
+        raise RuntimeError(f"OpenCAD LISP Error: {err_msg}")
 
 
 def eval_lisp(code: str, env: Optional[Env] = None) -> Any:
-    """Evaluate an AutoLISP code string and return the result."""
-    # 1. Try the high-speed native Rust AutoLISP engine first
+    """Evaluate an OpenCAD LISP code string and return the result."""
+    # 1. Try the high-speed native Rust OpenCAD LISP engine first
     dll, engine = _get_rust_engine()
     code_lower = code.lower()
     interactive_keywords = ("getpoint", "getdist", "getcorner", "getkword", "getstring", "getint", "getreal", "cad:")
@@ -1175,7 +1175,7 @@ def eval_lisp(code: str, env: Optional[Env] = None) -> Any:
 
 
 def load_lisp_file(file_path: str, env: Optional[Env] = None) -> Any:
-    """Load and execute an AutoLISP file (.lsp)."""
+    """Load and execute an OpenCAD LISP file (.lsp)."""
     with open(file_path, "r", encoding="utf-8", errors="replace") as f:
         code = f.read()
     return eval_lisp(code, env)

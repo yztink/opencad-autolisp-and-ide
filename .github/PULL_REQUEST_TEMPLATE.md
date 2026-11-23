@@ -8,7 +8,7 @@
 
 ## Cross-Repo Dependencies
 
-<!-- Does this PR require paired changes in OpenCADStudio or opencad-autolisp-engine? Link upstream PRs/commits or state "None". -->
+<!-- Does this PR require paired changes in OpenCADStudio or opencad-lisp-engine? Link upstream PRs/commits or state "None". -->
 - None
 
 ## Verification
@@ -18,8 +18,8 @@
 
 ## Checklist
 
-- [ ] Root cause is fixed at the proper layer (`OpenCADStudio`, `opencad-autolisp-engine`, or plugin) without introducing unnecessary workarounds
-- [ ] Changes adhere to established CAD standards, DXF/DWG conventions, and standard AutoLISP semantics
+- [ ] Root cause is fixed at the proper layer (`OpenCADStudio`, `opencad-lisp-engine`, or plugin) without introducing unnecessary workarounds
+- [ ] Changes adhere to established CAD standards, DXF/DWG conventions, and standard OpenCAD LISP semantics
 - [ ] No names of third-party or proprietary CAD software, add-on libraries, or CAD vendors appear in code, comments, docs, commits, or this PR description
 - [ ] `archive/python_shelved/` was left untouched and `Cargo.toml` contains no temporary local-only path overrides
 - [ ] Diff is tightly scoped with no unrelated reformatting

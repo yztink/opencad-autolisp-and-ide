@@ -474,7 +474,7 @@ impl IdeApp {
     pub fn new() -> (Self, Task<IdeMessage>) {
         let (client, rx) = IdeClient::new();
         let initial_tab = IdeTab::new_empty("untitled.lsp".to_string());
-        let welcome_text = "=== OpenCAD AutoLISP IDE (OCAIDE) ===\nType AutoLISP code above and click 'Load Script' (F5) or 'Load Selection' (F8).\nUse the REPL input line below for interactive AutoLISP evaluation.\n";
+        let welcome_text = "=== OpenCAD LISP IDE (OCIDE) ===\nType OpenCAD LISP code above and click 'Load Script' (F5) or 'Load Selection' (F8).\nUse the REPL input line below for interactive OpenCAD LISP evaluation.\n";
         let mut console_log = text_editor::Content::with_text(welcome_text);
         console_log.perform(text_editor::Action::Move(text_editor::Motion::DocumentEnd));
         let line_count = console_log.line_count() as i32;
@@ -545,8 +545,8 @@ impl IdeApp {
                 let dot = if t.dirty { "● " } else { "" };
                 format!("{}{}", dot, t.title)
             })
-            .unwrap_or_else(|| "OCAIDE".to_string());
-        format!("OpenCAD AutoLISP IDE (OCAIDE) - {active_title}")
+            .unwrap_or_else(|| "OCIDE".to_string());
+        format!("OpenCAD LISP IDE (OCIDE) - {active_title}")
     }
 
     pub fn update(&mut self, message: IdeMessage) -> Task<IdeMessage> {
@@ -569,7 +569,7 @@ impl IdeApp {
                     PluginToIde::Pong => {}
                     PluginToIde::FocusWindow => {
                         #[cfg(windows)]
-                        force_foreground_ocside();
+                        force_foreground_ocide();
                         return iced::window::latest().then(|id_opt| {
                             if let Some(id) = id_opt {
                                 Task::batch([
@@ -659,7 +659,7 @@ impl IdeApp {
                                 }
 
                                 #[cfg(windows)]
-                                force_foreground_ocside();
+                                force_foreground_ocide();
 
                                 return iced::window::latest().then(|id_opt| {
                                     if let Some(id) = id_opt {
@@ -770,7 +770,7 @@ impl IdeApp {
                     async move {
                         let file = rfd::AsyncFileDialog::new()
                             .set_directory(&start_dir)
-                            .add_filter("AutoLISP Routine (*.lsp, *.lisp)", &["lsp", "lisp"])
+                            .add_filter("OpenCAD LISP Routine (*.lsp, *.lisp)", &["lsp", "lisp"])
                             .add_filter("All Files (*.*)", &["*"])
                             .pick_file()
                             .await;
@@ -850,7 +850,7 @@ impl IdeApp {
                             let file = rfd::AsyncFileDialog::new()
                                 .set_directory(&start_dir)
                                 .set_file_name(&file_name)
-                                .add_filter("AutoLISP Routine (*.lsp, *.lisp)", &["lsp", "lisp"])
+                                .add_filter("OpenCAD LISP Routine (*.lsp, *.lisp)", &["lsp", "lisp"])
                                 .add_filter("All Files (*.*)", &["*"])
                                 .save_file()
                                 .await;
@@ -1194,7 +1194,7 @@ impl IdeApp {
                 };
                 let mode_str = match self.repl_mode {
                     crate::ide::protocol::ReplMode::Python => "Python",
-                    crate::ide::protocol::ReplMode::Lisp => "AutoLISP",
+                    crate::ide::protocol::ReplMode::Lisp => "OpenCAD LISP",
                 };
                 self.append_to_console(&format!("[REPL mode switched to {mode_str}]\n"));
                 Task::none()
@@ -1203,7 +1203,7 @@ impl IdeApp {
                 self.repl_mode = mode;
                 let mode_str = match self.repl_mode {
                     crate::ide::protocol::ReplMode::Python => "Python",
-                    crate::ide::protocol::ReplMode::Lisp => "AutoLISP",
+                    crate::ide::protocol::ReplMode::Lisp => "OpenCAD LISP",
                 };
                 self.append_to_console(&format!("[REPL mode switched to {mode_str}]\n"));
                 Task::none()
@@ -1959,7 +1959,7 @@ impl IdeApp {
             IdeMessage::ApplySyntaxPreset(preset) => {
                 let (colors, name) = match preset {
                     SyntaxPreset::Base16Mocha => (crate::ide::highlight::SyntaxColors::base16_mocha(), "Base16 Mocha (Default)"),
-                    SyntaxPreset::VlideClassic => (crate::ide::highlight::SyntaxColors::vlide_classic(), "VLIDE Classic"),
+                    SyntaxPreset::ClassicLight => (crate::ide::highlight::SyntaxColors::classic_light(), "Classic Light"),
                     SyntaxPreset::Monokai => (crate::ide::highlight::SyntaxColors::monokai(), "Monokai"),
                     SyntaxPreset::SolarizedDark => (crate::ide::highlight::SyntaxColors::solarized_dark(), "Solarized Dark"),
                 };
@@ -1979,7 +1979,7 @@ impl IdeApp {
                 self.selected_theme_name = name.clone();
                 let colors_opt = match name.as_str() {
                     "Base16 Mocha (Default)" => Some(crate::ide::highlight::SyntaxColors::base16_mocha()),
-                    "VLIDE Classic" => Some(crate::ide::highlight::SyntaxColors::vlide_classic()),
+                    "Classic Light" => Some(crate::ide::highlight::SyntaxColors::classic_light()),
                     "Monokai" => Some(crate::ide::highlight::SyntaxColors::monokai()),
                     "Solarized Dark" => Some(crate::ide::highlight::SyntaxColors::solarized_dark()),
                     "Custom" => None,
@@ -2531,7 +2531,7 @@ impl IdeApp {
                                 let picked = rfd::FileDialog::new()
                                     .set_directory(&start_dir)
                                     .set_file_name(&file_name)
-                                    .add_filter("AutoLISP Routine (*.lsp, *.lisp)", &["lsp", "lisp"])
+                                    .add_filter("OpenCAD LISP Routine (*.lsp, *.lisp)", &["lsp", "lisp"])
                                     .add_filter("All Files (*.*)", &["*"])
                                     .save_file();
                                 if let Some(path) = picked {
@@ -3014,7 +3014,7 @@ pub fn apply_window_transparency(transparent: bool, percent: u8) {
             let len = GetWindowTextW(hwnd, buf.as_mut_ptr(), 256);
             if len > 0 {
                 let title = String::from_utf16_lossy(&buf[..len as usize]);
-                if title.contains("(OCIDE)") || title.contains("(OCSIDE)") {
+                if title.contains("(OCIDE)") {
                     let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
                     if data.transparent {
                         SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style | WS_EX_LAYERED);
@@ -3034,7 +3034,7 @@ pub fn apply_window_transparency(transparent: bool, percent: u8) {
     }
 }
 
-pub use crate::ide::server::{force_foreground_cad, force_foreground_ide, force_foreground_ocside};
+pub use crate::ide::server::{force_foreground_cad, force_foreground_ide, force_foreground_ocide};
 
 #[cfg(test)]
 mod tests {
@@ -3275,7 +3275,7 @@ mod tests {
     #[test]
     fn test_debug_paused_scroll_synchronization_long_document() {
         let (mut app, _) = IdeApp::new();
-        // Generate a 1,000-line AutoLISP document
+        // Generate a 1,000-line OpenCAD LISP document
         let mut long_code = String::new();
         for i in 1..=1000 {
             long_code.push_str(&format!("(defun func_{i} () (princ {i}))\n"));
@@ -3382,7 +3382,7 @@ mod tests {
     #[test]
     fn test_find_and_replace_recursive_target_progression_and_open_replace() {
         let (mut app, _) = IdeApp::new();
-        let code = "(setq oca-1 10)\n(setq oca-2 (+ oca-1 20))\n(princ oca-1)\n";
+        let code = "(setq oc-1 10)\n(setq oc-2 (+ oc-1 20))\n(princ oc-1)\n";
         if let Some(tab) = app.tabs.get_mut(app.active_tab) {
             tab.content = text_editor::Content::with_text(code);
         }
@@ -3392,8 +3392,8 @@ mod tests {
         assert!(app.find_replace.is_open);
         assert!(app.find_replace.show_replace);
 
-        // Search for "oca-" and replace with "ocad-" (replace query contains find query!)
-        let _ = app.update(IdeMessage::FindQueryChanged("oca-".to_string()));
+        // Search for "oc-" and replace with "ocad-"
+        let _ = app.update(IdeMessage::FindQueryChanged("oc-".to_string()));
         let _ = app.update(IdeMessage::ReplaceQueryChanged("ocad-".to_string()));
         assert_eq!(app.find_replace.matches.len(), 4);
         assert_eq!(app.find_replace.current_match_idx, Some(0));
@@ -3406,14 +3406,14 @@ mod tests {
         let text_1 = app.tabs[app.active_tab].content.text();
         assert!(text_1.starts_with("(setq ocad-1 10)"));
 
-        // Replace second match (on line 1, first oca-)
+        // Replace second match (on line 1, first oc-)
         let _ = app.update(IdeMessage::ReplaceCurrent);
         assert_eq!(app.find_replace.matches.len(), 2);
         assert_eq!(app.find_replace.matches[0].line, 1);
         let text_2 = app.tabs[app.active_tab].content.text();
-        assert!(text_2.contains("(setq ocad-2 (+ oca-1 20))"));
+        assert!(text_2.contains("(setq ocad-2 (+ oc-1 20))"));
 
-        // Replace third match (on line 1, second oca-)
+        // Replace third match (on line 1, second oc-)
         let _ = app.update(IdeMessage::ReplaceCurrent);
         assert_eq!(app.find_replace.matches.len(), 1);
         assert_eq!(app.find_replace.matches[0].line, 2);
@@ -3441,7 +3441,7 @@ mod tests {
         let _ = app.update(IdeMessage::AddWatch("CH_WIDTH".to_string()));
         assert_eq!(app.watch_vars.len(), 1);
 
-        // When paused with uppercase symbol binding from AutoLISP engine
+        // When paused with uppercase symbol binding from OpenCAD LISP engine
         let _ = app.update(IdeMessage::PluginEvent(PluginToIde::DebugEvt(
             DebugEvent::Paused {
                 filename: "untitled.lsp".to_string(),

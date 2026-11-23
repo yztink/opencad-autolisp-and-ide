@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tutorial 2: Modal Dialog — OpenCAD AutoLISP</title>
+  <title>Tutorial 2: Modal Dialog — OpenCAD LISP</title>
   <style>
     :root {
       --bg: #0f1419;
@@ -64,16 +64,16 @@
     </nav>
 
     <h1>Tutorial 2: Programming a Modal Dialog</h1>
-    <p>This tutorial builds the exact same coordinate-drawing tool as a reactive modal dialog using <code>oca-dialog</code>, <code>oca-dialog-show</code>, and an <code>on-dialog-action</code> callback.</p>
+    <p>This tutorial builds the exact same coordinate-drawing tool as a reactive modal dialog using <code>oc-dialog</code>, <code>oc-dialog-show</code>, and an <code>on-dialog-action</code> callback.</p>
 
     <h2>Step 1: Define the Local Action Callback</h2>
-    <p>Inside <code>c:coorddialog</code>, define a local <code>on-dialog-action</code> function taking <code>(id action values)</code>. When the user clicks <strong>Add Point</strong> (<code>btn_add</code>), read <code>num_x</code>, <code>num_y</code>, and <code>tbl_pts</code> from <code>values</code> with <code>oca-get</code>, and return an association list of updated controls.</p>
+    <p>Inside <code>c:coorddialog</code>, define a local <code>on-dialog-action</code> function taking <code>(id action values)</code>. When the user clicks <strong>Add Point</strong> (<code>btn_add</code>), read <code>num_x</code>, <code>num_y</code>, and <code>tbl_pts</code> from <code>values</code> with <code>oc-get</code>, and return an association list of updated controls.</p>
 <pre><code>(defun on-dialog-action (id action values / x y tbl new-row new-tbl)
   (cond
     ((= id "btn_add")
-     (setq x   (oca-get "num_x" values))
-     (setq y   (oca-get "num_y" values))
-     (setq tbl (oca-get "tbl_pts" values))
+     (setq x   (oc-get "num_x" values))
+     (setq y   (oc-get "num_y" values))
+     (setq tbl (oc-get "tbl_pts" values))
      (if (not tbl) (setq tbl '()))
 
      (setq new-row (list (rtos (if x x 0.0) 2 4) (rtos (if y y 0.0) 2 4)))
@@ -89,49 +89,49 @@
 )</code></pre>
 
     <div class="note">
-      <strong>Notice the difference from Side Panels:</strong> In a modal dialog, leaving <code>action</code> off <code>(oca-button "btn_add" "Add Point")</code> automatically routes the click into <code>on-dialog-action</code> with the full <code>values</code> alist. Returning a <code>(cons key val)</code> list updates the dialog in-place.
+      <strong>Notice the difference from Side Panels:</strong> In a modal dialog, leaving <code>action</code> off <code>(oc-button "btn_add" "Add Point")</code> automatically routes the click into <code>on-dialog-action</code> with the full <code>values</code> alist. Returning a <code>(cons key val)</code> list updates the dialog in-place.
     </div>
 
     <h2>Step 2: Build and Show the Dialog</h2>
-    <p>Use <code>(submit . "Draw Entities")</code> in <code>oca-dialog</code> options so the dialog's primary button closes the dialog and returns all control values in <code>res</code>.</p>
+    <p>Use <code>(submit . "Draw Entities")</code> in <code>oc-dialog</code> options so the dialog's primary button closes the dialog and returns all control values in <code>res</code>.</p>
 <pre><code>(setq dlg
-  (oca-dialog "Coordinate Drawer"
+  (oc-dialog "Coordinate Drawer"
     '((width . 420.0) (submit . "Draw Entities") (cancel . "Cancel"))
 
-    (oca-info "lbl_status" "Enter X, Y and click Add Point.")
+    (oc-info "lbl_status" "Enter X, Y and click Add Point.")
 
-    (oca-row
-      (oca-number "num_x" "X" 0.0)
-      (oca-number "num_y" "Y" 0.0)
-      (oca-button "btn_add" "Add Point")
+    (oc-row
+      (oc-number "num_x" "X" 0.0)
+      (oc-number "num_y" "Y" 0.0)
+      (oc-button "btn_add" "Add Point")
     )
 
-    (oca-table "tbl_pts" "Coordinates"
+    (oc-table "tbl_pts" "Coordinates"
       '("X" "Y")
       '()
       '((allow_add . T) (allow_delete . T))
     )
 
-    (oca-row
-      (oca-choice "cmb_color" "Color" '("Red" "Yellow" "Green" "Cyan" "Blue" "White") "Red")
-      (oca-choice "cmb_type" "Entity Type" '("Lines" "Circles") "Lines")
+    (oc-row
+      (oc-choice "cmb_color" "Color" '("Red" "Yellow" "Green" "Cyan" "Blue" "White") "Red")
+      (oc-choice "cmb_type" "Entity Type" '("Lines" "Circles") "Lines")
     )
   )
 )
 
-(setq res (oca-dialog-show dlg 'on-dialog-action))</code></pre>
+(setq res (oc-dialog-show dlg 'on-dialog-action))</code></pre>
 
     <h2>Step 3: Draw Entities on Submit</h2>
-    <p>When the user clicks <strong>Draw Entities</strong>, <code>oca-dialog-show</code> returns <code>res</code> (or <code>nil</code> if cancelled). Extract <code>tbl_pts</code>, <code>cmb_color</code>, and <code>cmb_type</code> from <code>res</code> and draw the geometry.</p>
+    <p>When the user clicks <strong>Draw Entities</strong>, <code>oc-dialog-show</code> returns <code>res</code> (or <code>nil</code> if cancelled). Extract <code>tbl_pts</code>, <code>cmb_color</code>, and <code>cmb_type</code> from <code>res</code> and draw the geometry.</p>
 <pre><code>(defun c:coorddialog (/ dlg res on-dialog-action rows pts col etype old-col i p1 p2)
   ;; (1) Define on-dialog-action from Step 1 here
-  ;; (2) Build dlg and call (setq res (oca-dialog-show dlg 'on-dialog-action)) from Step 2
+  ;; (2) Build dlg and call (setq res (oc-dialog-show dlg 'on-dialog-action)) from Step 2
 
   (if res
     (progn
-      (setq rows  (oca-get "tbl_pts" res))
-      (setq col   (oca-get "cmb_color" res))
-      (setq etype (oca-get "cmb_type" res))
+      (setq rows  (oc-get "tbl_pts" res))
+      (setq col   (oc-get "cmb_color" res))
+      (setq etype (oc-get "cmb_type" res))
 
       (setq pts '())
       (foreach r (if rows rows '())

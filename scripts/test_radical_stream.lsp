@@ -1,6 +1,6 @@
 ;; ==============================================================================
-;; OpenCAD Studio - Radical Stream & Interactive AutoLISP Test Suite
-;; Recreating the 28 radical streaming and interactive tests in native AutoLISP:
+;; OpenCAD Studio - Radical Stream & Interactive OpenCAD LISP Test Suite
+;; Recreating the 28 radical streaming and interactive tests in native OpenCAD LISP:
 ;; Tests command streaming (command), standard CAD PAUSE and "\\" tokens, relative
 ;; coords (@dx,dy), interactive point picking (getpoint), layer manipulation,
 ;; and cancellation recovery.
@@ -464,8 +464,8 @@
 )
 
 (defun c:radical_suite_info ()
-  (princ "\n=== Registered AutoLISP Radical CAD Commands ===")
-  (princ "\n  AUTOLINE                   - AutoLISP coordinate stream with math calculations")
+  (princ "\n=== Registered OpenCAD LISP Radical CAD Commands ===")
+  (princ "\n  AUTOLINE                   - OpenCAD LISP coordinate stream with math calculations")
   (princ "\n  PAUSELINE                  - LINE '(10 10 0) PAUSE (viewport click)")
   (princ "\n  PAUSECIRCLE                - CIRCLE '(50 50 0) PAUSE (click radius in viewport)")
   (princ "\n  BACKSLASHPAUSE             - LINE '(0 50 0) \"\\\" (test backslash pause)")

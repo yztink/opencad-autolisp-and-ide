@@ -25,25 +25,25 @@ use ocs_plugin_api::manifest::{ApiVersion, PluginManifest};
 use ocs_plugin_api::ribbon::CadModule;
 
 pub static MANIFEST: PluginManifest = PluginManifest {
-    id: "opencad.autolisp_and_ide",
-    name: "OpenCAD AutoLISP & IDE",
+    id: "opencad.lisp_and_ide",
+    name: "OpenCAD LISP & IDE",
     version: env!("CARGO_PKG_VERSION"),
-    description: "Run AutoLISP routines, commands, and OCAIDE inside OpenCAD Studio",
+    description: "Run OpenCAD LISP routines, commands, and OCIDE inside OpenCAD Studio",
     api_version: ApiVersion::CURRENT,
     ribbon_order: 150,
     xdata_apps: &[],
-    command_prefixes: &["OCAIDE", "LSP", "LISP", "LSPRUN", "LSPLIST", "LSPRELOAD", "LSPDIR", "LSPERR", "LISPERR", "APPLOAD", "LSPFLUSH"],
+    command_prefixes: &["OCIDE", "LSP", "LISP", "LSPRUN", "LSPLIST", "LSPRELOAD", "LSPDIR", "LSPERR", "LISPERR", "APPLOAD", "LSPFLUSH"],
 };
 
-pub struct AutoLispPlugin;
+pub struct OpenCadLispPlugin;
 
-impl BuiltinPlugin for AutoLispPlugin {
+impl BuiltinPlugin for OpenCadLispPlugin {
     fn manifest(&self) -> &'static PluginManifest {
         &MANIFEST
     }
 
     fn ribbon(&self) -> Box<dyn CadModule> {
-        Box::new(ribbon::AutoLispRibbonModule)
+        Box::new(ribbon::OpenCadLispRibbonModule)
     }
 
     fn dispatch(&self, host: &mut dyn HostApi, cmd: &str) -> bool {
@@ -101,7 +101,7 @@ impl BuiltinPlugin for AutoLispPlugin {
             let scripts = rust_lisp::list_lisp_scripts();
             let loaded = rust_lisp::auto_load_lisp_scripts(host);
             host.push_info(&format!(
-                "OpenCAD AutoLISP loaded ({} .lsp scripts in {}, {} c:commands registered)",
+                "OpenCAD LISP loaded ({} .lsp scripts in {}, {} c:commands registered)",
                 scripts.len(),
                 dir.display(),
                 loaded
@@ -142,7 +142,7 @@ fn scrub_stale_pgp_aliases() {
     }
 }
 
-export_plugin!(AutoLispPlugin);
+export_plugin!(OpenCadLispPlugin);
 
 #[cfg(test)]
 mod tests {
@@ -364,7 +364,7 @@ mod tests {
         #[test]
         fn test_python_runtime_and_opencad_bindings() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         // Test PYRUN inline code
         let ok = plugin.dispatch(&mut host, "PYRUN import opencad; opencad.info('Hello from OpenCAD test!')");
@@ -405,7 +405,7 @@ mod tests {
         std::env::set_var("OCS_SCRIPTS_DIR", &test_dir);
 
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let test_script = test_dir.join("test_draw.py");
         std::fs::write(&test_script, r#"
@@ -434,7 +434,7 @@ def run(args):
         std::env::set_var("OCS_SCRIPTS_DIR", &test_dir);
 
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let test_script = test_dir.join("hello.py");
         std::fs::write(&test_script, r#"
@@ -471,7 +471,7 @@ print("Hello executed successfully")
         let mut host = MockHost::new();
         let dummy_handler = Arc::new(|_: &str, _: Option<u64>, _: ocs_plugin_api::host::PluginNotification| {});
         let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let dll_path = manifest_dir.join("target/release/opencad_autolisp.dll");
+        let dll_path = manifest_dir.join("target/release/opencad_lisp.dll");
         if !dll_path.exists() {
             eprintln!("Skipping test_spawn_process: release dll not built yet");
             return;
@@ -484,7 +484,7 @@ print("Hello executed successfully")
         match res {
             Ok(p) => {
                 println!("Spawn succeeded! Plugin ID: {}, Name: {}", p.id(), p.manifest().name);
-                assert_eq!(p.id(), "opencad.autolisp");
+                assert_eq!(p.id(), "opencad.lisp_and_ide");
             }
             Err(e) => panic!("Spawn failed with: {:?}", e),
         }
@@ -493,14 +493,14 @@ print("Hello executed successfully")
     #[test]
     fn test_on_load() {
         let mut host = MockHost::new();
-        let mut plugin = AutoLispPlugin;
+        let mut plugin = OpenCadLispPlugin;
         plugin.on_load(&mut host);
     }
 
     #[test]
     fn test_python_error_handling() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let ok = plugin.dispatch(&mut host, "PYRUN 1 / 0");
         assert!(ok);
@@ -534,7 +534,7 @@ def my_widget():
         std::fs::write(test_dir.join("decor_demo.py"), decorated_script).unwrap();
 
         let mut host = MockHost::new();
-        let mut plugin = AutoLispPlugin;
+        let mut plugin = OpenCadLispPlugin;
 
         plugin.on_load(&mut host);
 
@@ -617,7 +617,7 @@ if p1:
         std::fs::write(test_dir.join("c-draw_line.py"), script).unwrap();
 
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         // Dispatch command - should start interactive command and return true
         let ok = plugin.dispatch(&mut host, "PY c-draw_line");
@@ -668,7 +668,7 @@ def testrect():
         std::fs::write(test_dir.join("testrect.py"), script).unwrap();
 
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         // Auto-load decorated scripts to register 'testrect'
         let _ = crate::py_runtime::auto_load_decorated_scripts(&mut host);
@@ -721,7 +721,7 @@ def rad_cancel_recover():
         std::fs::write(test_dir.join("rad_test.py"), script).unwrap();
 
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let _ = crate::py_runtime::auto_load_decorated_scripts(&mut host);
 
@@ -812,7 +812,7 @@ oc.info(f"Imported helper midpoint={mid}, offset={off}, area={area}")
         std::fs::write(test_dir.join("consumer.py"), consumer_code).unwrap();
 
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         // Test PYLOAD tools - should register MY_BOX and TRI
         let ok_load = plugin.dispatch(&mut host, "PYLOAD tools");
@@ -863,7 +863,7 @@ oc.info(f"Imported helper midpoint={mid}, offset={off}, area={area}")
 
         let handle = std::thread::spawn(move || {
             let mut host = MockHost::new();
-            let plugin = AutoLispPlugin;
+            let plugin = OpenCadLispPlugin;
             let ok = plugin.dispatch(&mut host, &cmd);
             assert!(ok);
         });
@@ -923,7 +923,7 @@ oc.info(f"Imported helper midpoint={mid}, offset={off}, area={area}")
         use crate::py_debug::{DebugCommand, DebugEvent};
 
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         // First load a script that defines @oc.command("TEST_BREAK")
         let script = "import opencad as oc\n\n@oc.command(\"TEST_BREAK\")\ndef test_break():\n    val = 42\n    oc.info(f\"val is {val}\")\n";
@@ -939,7 +939,7 @@ oc.info(f"Imported helper midpoint={mid}, offset={off}, area={area}")
 
         let handle = std::thread::spawn(move || {
             let mut host2 = MockHost::new();
-            let plugin2 = AutoLispPlugin;
+            let plugin2 = OpenCadLispPlugin;
             let ok = plugin2.dispatch(&mut host2, &debug_cmd);
             assert!(ok);
         });
@@ -990,7 +990,7 @@ oc.info(f"Imported helper midpoint={mid}, offset={off}, area={area}")
     #[test]
     fn test_add_layer_full_properties_and_upsert() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         // 1. Create a layer with full properties
         let script1 = r#"
@@ -1100,7 +1100,7 @@ print("GET_LAYER_VERIFIED")
     #[test]
     fn test_layer_props_exact() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let script = r#"
 import opencad as oc
@@ -1161,7 +1161,7 @@ def main():
     #[test]
     fn test_cmd_and_execute_command() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let script = r#"
 import opencad as oc
@@ -1216,7 +1216,7 @@ print("CMD_TESTS_PASSED")
     #[test]
     fn test_v7_2d_entities() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let script = r#"
 import opencad as oc
@@ -1278,7 +1278,7 @@ print("2D_ENTITIES_TESTS_PASSED")
     #[test]
     fn test_v7_3d_solids_and_booleans() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let script = r#"
 import opencad as oc
@@ -1339,7 +1339,7 @@ print("3D_SOLIDS_TESTS_PASSED")
     #[test]
     fn test_v7_tables_and_sysvars() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let script = r#"
 import opencad as oc
@@ -1388,7 +1388,7 @@ print("TABLES_AND_SYSVARS_TESTS_PASSED")
     #[test]
     fn test_sandbox_blocks_network_and_subprocesses() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let script = r#"
 import os
@@ -1451,7 +1451,7 @@ print("SANDBOX_NETWORK_AND_SUBPROCESS_TESTS_PASSED")
     #[test]
     fn test_sandbox_security_status_and_trust() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let script = r#"
 import opencad as oc
@@ -1475,7 +1475,7 @@ print("SANDBOX_SECURITY_STATUS_PASSED")
     #[test]
     fn test_sandbox_untrusted_script_path_rejection() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         // Create a temporary script outside scripts_dir
         let temp_dir = std::env::temp_dir().join(format!("ocs_test_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
@@ -1520,7 +1520,7 @@ print("SANDBOX_SECURITY_STATUS_PASSED")
         let _ = crate::py_sandbox::save_config(&cfg);
 
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let script = r#"
 import opencad as oc
@@ -1542,7 +1542,7 @@ for i in range(10):
     #[test]
     fn test_get_entity_data() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let script = r#"
 import opencad as oc
@@ -1633,7 +1633,7 @@ print("TEST_GET_ENTITY_DATA_PASSED")
         std::fs::write(&script_file, "import opencad as oc\nprint('C_MYCMD_EXECUTED')\n").unwrap();
 
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         // 1. Invoking MYCMD should resolve c-mycmd.py
         let ok = plugin.dispatch(&mut host, "MYCMD");
@@ -1766,7 +1766,7 @@ if p1:
         std::fs::write(test_dir.join("c-rb_test.py"), script).unwrap();
 
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let ok = plugin.dispatch(&mut host, "PY c-rb_test");
         assert!(ok);
@@ -1828,7 +1828,7 @@ if c1:
         std::fs::write(test_dir.join("c-box_test.py"), script).unwrap();
 
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let ok = plugin.dispatch(&mut host, "PY c-box_test");
         assert!(ok);
@@ -1877,7 +1877,7 @@ pt = oc.get_point("Pick radius: ", rubber_band=("circle", center), color="red")
         std::fs::write(test_dir.join("test_rb_circ.py"), script).unwrap();
 
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let ok = plugin.dispatch(&mut host, "PY test_rb_circ");
         assert!(ok);
@@ -1924,7 +1924,7 @@ def crash_command():
         std::fs::write(test_dir.join("crashtest.py"), script).unwrap();
 
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let _ = crate::py_runtime::auto_load_decorated_scripts(&mut host);
 
@@ -1989,7 +1989,7 @@ def crash_command():
         crate::py_runtime::store_loaded_script("restart_demo.py", "import opencad as oc\noc.info('version 1')");
         assert!(crate::py_runtime::get_loaded_script("restart_demo.py").is_some());
 
-        // Update in-memory script (simulating user edit in OCSIDE)
+        // Update in-memory script (simulating user edit in OCIDE)
         crate::py_runtime::store_loaded_script("restart_demo.py", "import opencad as oc\noc.info('version 2 fixed')");
         let loaded = crate::py_runtime::get_loaded_script("restart_demo.py").unwrap();
         assert!(loaded.contains("version 2 fixed"));
@@ -1998,7 +1998,7 @@ def crash_command():
     #[test]
     fn test_python_dialog_api() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let script = r#"
 import opencad as oc
@@ -2048,7 +2048,7 @@ if cfg:
     #[test]
     fn test_declarative_panel_and_callbacks() {
         let mut host = MockHost::new();
-        let mut plugin = AutoLispPlugin;
+        let mut plugin = OpenCadLispPlugin;
 
         let script = r#"
 import opencad as oc
@@ -2130,7 +2130,7 @@ def survey_sample_tool(panel):
     #[test]
     fn test_interactive_panel_sample_point_pick() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let script = r#"
 import opencad as oc
@@ -2201,7 +2201,7 @@ def traverse_sample_tool(panel):
     #[test]
     fn test_mock_grid_panel_registration_and_toggle_command() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let script = r#"
 import opencad as oc
@@ -2241,7 +2241,7 @@ def mock_grid_palette(panel):
     #[test]
     fn test_panel_choice_and_table_safety() {
         let mut host = MockHost::new();
-        let mut plugin = AutoLispPlugin;
+        let mut plugin = OpenCadLispPlugin;
 
         let script = r#"
 import opencad as oc
@@ -2308,15 +2308,15 @@ assert res_state["schedule_len"] == 0, f"Expected 0 after remove_row, got {res_s
     } // end mod python_tests
 
     #[test]
-    fn test_autolisp_direct_evaluation_and_reflection() {
+    fn test_opencad_lisp_direct_evaluation_and_reflection() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         // 1. Direct S-expression in command line
         let ok_eval = plugin.dispatch(&mut host, "(+ 10 20 30)");
         assert!(ok_eval);
 
-        // 2. Define a CAD command via AutoLISP: (defun c:lisp_box () ...)
+        // 2. Define a CAD command via OpenCAD LISP: (defun c:lisp_box () ...)
         let lisp_def = r#"
         (defun c:lisp_box ()
           (cad:add-line '(0 0 0) '(100 0 0) "LISP_LAYER")
@@ -2344,7 +2344,7 @@ assert res_state["schedule_len"] == 0, f"Expected 0 after remove_row, got {res_s
     #[test]
     fn test_target_interactive_step() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let sample_code = std::fs::read_to_string("scripts/sample_demo.lsp").unwrap();
         let ok_load = plugin.dispatch(&mut host, &format!("LSPRUN {sample_code}"));
@@ -2375,9 +2375,9 @@ assert res_state["schedule_len"] == 0, f"Expected 0 after remove_row, got {res_s
     }
 
     #[test]
-    fn test_autolisp_radical_stream_load_and_dispatch() {
+    fn test_opencad_lisp_radical_stream_load_and_dispatch() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let code = std::fs::read_to_string("scripts/test_radical_stream.lsp").unwrap();
         let ok_load = plugin.dispatch(&mut host, &format!("LSPRUN {code}"));
@@ -2398,11 +2398,11 @@ assert res_state["schedule_len"] == 0, f"Expected 0 after remove_row, got {res_s
     }
 
     #[test]
-    fn test_autolisp_setvar_dynmode_and_ctab_host_dispatch() {
+    fn test_opencad_lisp_setvar_dynmode_and_ctab_host_dispatch() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
-        // 1. Set DYNMODE to 0 via AutoLISP and verify SETVAR DYNMODE 0 is executed on the host
+        // 1. Set DYNMODE to 0 via OpenCAD LISP and verify SETVAR DYNMODE 0 is executed on the host
         let ok_dyn = plugin.dispatch(&mut host, "(setvar \"DYNMODE\" 0)");
         assert!(ok_dyn);
         assert!(
@@ -2417,7 +2417,7 @@ assert res_state["schedule_len"] == 0, f"Expected 0 after remove_row, got {res_s
         assert!(ok_get_dyn);
         assert_eq!(host.outputs.last().map(|s| s.as_str()), Some("0"));
 
-        // 2. Set OSMODE to 35 via AutoLISP and verify both HeaderVariables and SETVAR OSMODE 35 are updated
+        // 2. Set OSMODE to 35 via OpenCAD LISP and verify both HeaderVariables and SETVAR OSMODE 35 are updated
         let ok_osmode = plugin.dispatch(&mut host, "(setvar \"OSMODE\" 35)");
         assert!(ok_osmode);
         assert_eq!(host.doc.header.object_snap_mode, 35);
@@ -2427,7 +2427,7 @@ assert res_state["schedule_len"] == 0, f"Expected 0 after remove_row, got {res_s
             host.commands
         );
 
-        // 3. Set CTAB to Layout1 via AutoLISP and verify TableOperation::LayoutSetCurrent updated host CTAB
+        // 3. Set CTAB to Layout1 via OpenCAD LISP and verify TableOperation::LayoutSetCurrent updated host CTAB
         host.outputs.clear();
         let ok_ctab = plugin.dispatch(&mut host, "(setvar \"CTAB\" \"Layout1\")");
         assert!(ok_ctab);
@@ -2437,9 +2437,9 @@ assert res_state["schedule_len"] == 0, f"Expected 0 after remove_row, got {res_s
     }
 
     #[test]
-    fn test_autolisp_error_prints_function_and_lsperr() {
+    fn test_opencad_lisp_error_prints_function_and_lsperr() {
         let mut host = MockHost::new();
-        let plugin = AutoLispPlugin;
+        let plugin = OpenCadLispPlugin;
 
         let ok_def = plugin.dispatch(
             &mut host,
@@ -2460,7 +2460,7 @@ assert res_state["schedule_len"] == 0, f"Expected 0 after remove_row, got {res_s
         // 1. OCS command line should ONLY receive the concise function error, with no multi-line output clutter
         assert_eq!(
             host.errors,
-            vec!["AutoLISP Error in CALC-OFFSET: Type error in +: expected number, got \"not-a-number\" [(+ BASE DELTA)]".to_string()],
+            vec!["OpenCAD LISP Error in CALC-OFFSET: Type error in +: expected number, got \"not-a-number\" [(+ BASE DELTA)]".to_string()],
             "Expected concise function error on OCS command line, got: {:?}",
             host.errors
         );
@@ -2470,7 +2470,7 @@ assert res_state["schedule_len"] == 0, f"Expected 0 after remove_row, got {res_s
             host.outputs
         );
 
-        // 2. Full diagnostic (sent to OCSIDE console when open and stored in LAST_LISP_ERROR) must contain all details
+        // 2. Full diagnostic (sent to OCIDE console when open and stored in LAST_LISP_ERROR) must contain all details
         let full_ide_err = crate::rust_lisp::get_last_lisp_error().expect("full error should be stored");
         assert!(full_ide_err.contains("Type error in +: expected number, got \"not-a-number\""));
         assert!(full_ide_err.contains("; in expression: (+ BASE DELTA)"));
@@ -2486,7 +2486,7 @@ assert res_state["schedule_len"] == 0, f"Expected 0 after remove_row, got {res_s
         assert!(
             host.errors
                 .iter()
-                .any(|e| e.contains("Last AutoLISP Error: Type error in +")),
+                .any(|e| e.contains("Last OpenCAD LISP Error: Type error in +")),
             "Expected LSPERR headline, got: {:?}",
             host.errors
         );
@@ -2509,7 +2509,7 @@ assert res_state["schedule_len"] == 0, f"Expected 0 after remove_row, got {res_s
         );
         assert!(ocs_plugin_api::API_VERSION >= 28);
 
-        let mut plugin = AutoLispPlugin;
+        let mut plugin = OpenCadLispPlugin;
         let prev_tab = crate::context::get_active_tab_id();
         plugin.on_notification(
             None,

@@ -427,7 +427,7 @@ impl InteractiveCoordinator {
         if let Ok(mut e) = self.error.lock() {
             *e = Some(err_msg.clone());
         }
-        // Broadcast error directly to OCSIDE console
+        // Broadcast error directly to OCIDE console
         crate::ide::server::broadcast_to_ide(&crate::ide::protocol::PluginToIde::ConsoleOutput {
             text: format!("\n[Error] {}\n", err_msg),
             is_error: true,
@@ -1047,7 +1047,7 @@ impl LispInteractiveBridge {
     fn restore_focus_to_ide_after_input(&self, had_debug_session: bool) {
         if had_debug_session && crate::rust_lisp::is_currently_paused_in_debugger() {
             let _ = crate::ide::server::focus_or_check_alive();
-            crate::ide::server::force_foreground_ocside();
+            crate::ide::server::force_foreground_ocide();
         }
     }
 

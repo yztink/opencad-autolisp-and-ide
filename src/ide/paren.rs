@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-/// Configuration options for AutoLISP code formatting according to VLIDE standards.
+/// Configuration options for OpenCAD LISP code formatting according to classic LISP standards.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct LispFormatOptions {
@@ -23,7 +23,7 @@ impl Default for LispFormatOptions {
     }
 }
 
-/// Returns true if `head` is a standard AutoLISP special form or control-flow construct
+/// Returns true if `head` is a standard OpenCAD LISP special form or control-flow construct
 /// that uses Narrow Style formatting (open_col + indent_size).
 pub fn is_lisp_special_form(head: &str) -> bool {
     let lower = head.to_ascii_lowercase();
@@ -43,7 +43,7 @@ pub fn is_lisp_special_form(head: &str) -> bool {
     )
 }
 
-/// Represents a parenthesis token in AutoLISP source code (outside comments and strings).
+/// Represents a parenthesis token in OpenCAD LISP source code (outside comments and strings).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ParenToken {
     pub offset: usize,
@@ -85,7 +85,7 @@ pub fn offset_to_pos(text: &str, target_offset: usize) -> (usize, usize) {
     (line, col)
 }
 
-/// Scans AutoLISP source text and collects all active parentheses outside of comments and strings.
+/// Scans OpenCAD LISP source text and collects all active parentheses outside of comments and strings.
 pub fn scan_parens(text: &str) -> Vec<ParenToken> {
     let bytes = text.as_bytes();
     let len = bytes.len();
@@ -758,7 +758,7 @@ pub fn compute_lisp_indent_at_offset(text: &str, cursor_offset: usize) -> usize 
     compute_lisp_line_indent(prefix, rest_of_line).unwrap_or(0)
 }
 
-/// Normalizes intra-line whitespace in a single line of AutoLISP code (assuming leading
+/// Normalizes intra-line whitespace in a single line of OpenCAD LISP code (assuming leading
 /// indentation has already been stripped or is handled separately), while tracking
 /// multi-line string (`in_string`) and block comment (`block_comment_depth`) state.
 ///
@@ -767,7 +767,7 @@ pub fn compute_lisp_indent_at_offset(text: &str, cursor_offset: usize) -> usize 
 /// - No space immediately after `(`, `'`, `` ` ``, `,`, or `,@`.
 /// - No space immediately before `)`.
 /// - Single space between adjacent parameters/tokens and before `(` or `'` when preceded by a token or `)`.
-/// Normalizes intra-line whitespace in a single line of AutoLISP code (assuming leading
+/// Normalizes intra-line whitespace in a single line of OpenCAD LISP code (assuming leading
 /// indentation has already been stripped or is handled separately), while tracking
 /// multi-line string (`in_string`) and block comment (`block_comment_depth`) state
 /// and formatting options (such as symbol casing normalization).
@@ -1017,7 +1017,7 @@ pub struct LispToken {
     pub newlines_before: usize,
 }
 
-/// Tokenizes AutoLISP text while recording newlines before each token.
+/// Tokenizes OpenCAD LISP text while recording newlines before each token.
 pub fn tokenize_lisp_for_reflow(text: &str) -> Vec<LispToken> {
     let bytes = text.as_bytes();
     let len = bytes.len();
@@ -1844,7 +1844,7 @@ fn render_form_reflowed(form: &LispForm, out: &mut String, options: &LispFormatO
     }
 }
 
-/// Performs structural line re-flow (line breaking and line joining) on AutoLISP code.
+/// Performs structural line re-flow (line breaking and line joining) on OpenCAD LISP code.
 pub fn reflow_lisp_text(text: &str, options: &LispFormatOptions) -> String {
     let tokens = tokenize_lisp_for_reflow(text);
     if tokens.is_empty() {
@@ -1936,7 +1936,7 @@ pub fn format_lisp_line_range_indent_only(
 }
 
 /// Re-indents, normalizes whitespace, and optionally performs structural line re-flow
-/// on lines `start_line..=end_line` (0-indexed, inclusive) according to AutoLISP / VLIDE rules.
+/// on lines `start_line..=end_line` (0-indexed, inclusive) according to OpenCAD LISP rules.
 pub fn format_lisp_line_range_with_options(
     text: &str,
     start_line: usize,
@@ -1991,7 +1991,7 @@ pub fn format_lisp_code_with_options(text: &str, options: &LispFormatOptions) ->
     format_lisp_line_range_with_options(text, 0, usize::MAX, options)
 }
 
-/// Formats the indentation and intra-line whitespace of an entire AutoLISP source buffer.
+/// Formats the indentation and intra-line whitespace of an entire OpenCAD LISP source buffer.
 pub fn format_lisp_code(text: &str) -> String {
     format_lisp_code_with_options(text, &LispFormatOptions::default())
 }
@@ -2020,7 +2020,7 @@ mod tests {
             (princ msg)
         "#;
         let parens = scan_parens(code);
-        // Only the actual AutoLISP code parens should be captured:
+        // Only the actual OpenCAD LISP code parens should be captured:
         // (setq msg "...")
         // (princ msg)
         assert_eq!(parens.len(), 4);
@@ -2099,7 +2099,7 @@ mod tests {
     }
 
     #[test]
-    fn test_smart_enter_and_vlide_formatting() {
+    fn test_smart_enter_and_lisp_formatting() {
         // 1. Top-level closed expression -> 0 spaces
         let top = "(setq a 10)";
         assert_eq!(compute_lisp_indent_at_offset(top, top.len()), 0);
@@ -2134,7 +2134,7 @@ mod tests {
             "(if (> a 0) (princ \"keep   inner   spaces\")) ;   comment   spaces"
         );
 
-        // 6. Full VLIDE format check (including collapsing extra spaces inside parens & between args)
+        // 6. Full OpenCAD LISP format check (including collapsing extra spaces inside parens & between args)
         let unformatted = "\
 (  defun   c:MyCommand   ( /   pt1   pt2   dist )
 (  setq   pt1    (  getpoint   \"\\nSpecify first point: \"  )

@@ -1,8 +1,8 @@
 // ============================================================================
 // DO NOT EDIT — PYTHON SUPPORT IS SHELVED / FROZEN.
-// Do NOT modify this file or add features to Python to mirror AutoLISP.
-// All active AutoLISP development belongs strictly in:
-//   - ../opencad-autolisp-engine (crates/lisp-core, crates/lisp-cad)
+// Do NOT modify this file or add features to Python to mirror OpenCAD LISP.
+// All active OpenCAD LISP development belongs strictly in:
+//   - ../opencad-lisp-engine (crates/lisp-core, crates/lisp-cad)
 //   - src/rust_lisp.rs
 // ============================================================================
 

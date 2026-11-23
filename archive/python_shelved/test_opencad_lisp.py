@@ -4,8 +4,8 @@ import sys
 # Ensure src is importable
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
-import autolisp
-from autolisp import NIL, T, Symbol, Cons, eval_lisp, get_global_env, auto_bind_module
+import opencad_lisp
+from opencad_lisp import NIL, T, Symbol, Cons, eval_lisp, get_global_env, auto_bind_module
 
 
 def test_core_math():
@@ -101,7 +101,7 @@ def test_command_registration():
         def register_command(self, name, func, doc):
             registered[name] = func
 
-    autolisp.init_autolisp(MockCadApi())
+    opencad_lisp.init_opencad_lisp(MockCadApi())
 
     code = """
     (defun c:draw_box ()
@@ -118,7 +118,7 @@ def test_command_registration():
 
 
 def test_automatic_python_reflection():
-    print("Testing automatic Python API reflection into AutoLISP...")
+    print("Testing automatic Python API reflection into OpenCAD LISP...")
 
     created_lines = []
     created_circles = []
@@ -149,7 +149,7 @@ def test_automatic_python_reflection():
             return f"Processed {name} with factor {factor * 2}"
 
     api = LiveCadApi()
-    env = autolisp.init_autolisp(api)
+    env = opencad_lisp.init_opencad_lisp(api)
 
     # 1. Test kebab-case automatic reflection:
     # add_line -> (add-line ...) and (cad:add-line ...)
@@ -180,7 +180,7 @@ def test_automatic_python_reflection():
 
 
 def test_python_interop_inside_lisp():
-    print("Testing direct Python evaluation inside AutoLISP...")
+    print("Testing direct Python evaluation inside OpenCAD LISP...")
     assert eval_lisp('(py-eval "2 ** 10")') == 1024
     assert eval_lisp('(py-eval "\'hello \'.upper() + \'world\'")') == "HELLO world"
     print("  -> Passed!")
@@ -195,4 +195,4 @@ if __name__ == "__main__":
     test_command_registration()
     test_automatic_python_reflection()
     test_python_interop_inside_lisp()
-    print("\nALL 7 AUTOLISP TESTS PASSED 100%!")
+    print("\nALL 7 OPENCAD LISP TESTS PASSED 100%!")

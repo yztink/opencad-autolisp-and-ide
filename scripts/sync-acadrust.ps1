@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Synchronizes acadrust revision between OpenCADStudio and opencad-autolisp-and-ide,
+    Synchronizes acadrust revision between OpenCADStudio and opencad-lisp-and-ide,
     and optionally builds and installs the plugin into OpenCAD Studio.
 
 .DESCRIPTION
@@ -9,7 +9,7 @@
       1. Reads the acadrust revision and full commit hash from OpenCAD Studio's Cargo.lock.
       2. Updates plugin.toml's acadrust_source with the full commit hash.
       3. Updates Cargo.lock using `cargo update -p acadrust`.
-      4. Optionally compiles `--release` (-Build) and installs to %APPDATA%\OpenCADStudio\plugins\opencad.autolisp_and_ide\ (-Install).
+      4. Optionally compiles `--release` (-Build) and installs to %APPDATA%\OpenCADStudio\plugins\opencad.lisp_and_ide\ (-Install).
 
 .PARAMETER OcsPath
     Path to OpenCADStudio repository. Defaults to checking ../OpenCADStudio-fork, ../OpenCADStudio, or ../OpenCADStudio-2026.37.
@@ -18,7 +18,7 @@
     If specified, runs `cargo build --release` after syncing.
 
 .PARAMETER Install
-    If specified, builds release and copies plugin.toml and opencad.autolisp_and_ide.dll to %APPDATA%\OpenCADStudio\plugins\opencad.autolisp_and_ide\.
+    If specified, builds release and copies plugin.toml and opencad.lisp_and_ide.dll to %APPDATA%\OpenCADStudio\plugins\opencad.lisp_and_ide\.
 
 .EXAMPLE
     .\scripts\sync-acadrust.ps1
@@ -107,7 +107,7 @@ if (Test-Path $pluginTomlPath) {
 }
 
 # 4. Run cargo update
-Write-Host "Updating Cargo.lock in opencad-autolisp-and-ide..." -ForegroundColor Cyan
+Write-Host "Updating Cargo.lock in opencad-lisp-and-ide..." -ForegroundColor Cyan
 Push-Location $RunnerRoot
 try {
     & cargo update -p $codecPkgName
@@ -126,14 +126,14 @@ try {
     }
 
     if ($Install) {
-        $appDataPluginDir = Join-Path $env:APPDATA "OpenCADStudio\plugins\opencad.autolisp_and_ide"
+        $appDataPluginDir = Join-Path $env:APPDATA "OpenCADStudio\plugins\opencad.lisp_and_ide"
         if (-not (Test-Path $appDataPluginDir)) {
             New-Item -ItemType Directory -Path $appDataPluginDir -Force | Out-Null
         }
         Copy-Item -Force (Join-Path $RunnerRoot "plugin.toml") (Join-Path $appDataPluginDir "plugin.toml")
-        Copy-Item -Force (Join-Path $RunnerRoot "target\release\opencad_autolisp.dll") (Join-Path $appDataPluginDir "opencad.autolisp_and_ide.dll")
-        if (Test-Path (Join-Path $RunnerRoot "target\release\opencad_autolisp_ide.exe")) {
-            Copy-Item -Force (Join-Path $RunnerRoot "target\release\opencad_autolisp_ide.exe") (Join-Path $appDataPluginDir "opencad_autolisp_ide.exe")
+        Copy-Item -Force (Join-Path $RunnerRoot "target\release\opencad_lisp.dll") (Join-Path $appDataPluginDir "opencad.lisp_and_ide.dll")
+        if (Test-Path (Join-Path $RunnerRoot "target\release\opencad_lisp_ide.exe")) {
+            Copy-Item -Force (Join-Path $RunnerRoot "target\release\opencad_lisp_ide.exe") (Join-Path $appDataPluginDir "opencad_lisp_ide.exe")
         }
         Write-Host "Successfully installed plugin to $appDataPluginDir" -ForegroundColor Green
     }

@@ -1,13 +1,13 @@
 [plugin]
-id = "opencad.autolisp_and_ide"
-name = "OpenCAD AutoLISP & IDE"
+id = "opencad.lisp_and_ide"
+name = "OpenCAD LISP & IDE"
 version = "0.4.0"
-description = "Run AutoLISP routines, commands, and OCAIDE inside OpenCAD Studio"
+description = "Run OpenCAD LISP routines, commands, and OCIDE inside OpenCAD Studio"
 author = "OpenCAD Contributor"
 license = "GPL-3.0-only"
 
 [opencad]
 api_version = 28
 ribbon_order = 150
-command_prefixes = ["OCAIDE", "LSP", "LISP", "LSPRUN", "LSPLIST", "LSPRELOAD", "LSPDIR", "LSPERR", "LISPERR", "APPLOAD", "LSPFLUSH"]
+command_prefixes = ["OCIDE", "LSP", "LISP", "LSPRUN", "LSPLIST", "LSPRELOAD", "LSPDIR", "LSPERR", "LISPERR", "APPLOAD", "LSPFLUSH"]
 xdata_apps = []

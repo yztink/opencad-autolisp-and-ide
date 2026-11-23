@@ -56,7 +56,7 @@ pub enum ReplMode {
     Lisp,
 }
 
-/// Messages sent from the standalone OCSIDE application to the CAD plugin runner.
+/// Messages sent from the standalone OCIDE application to the CAD plugin runner.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum IdeToPlugin {
     Ping,
@@ -87,7 +87,7 @@ pub enum IdeToPlugin {
     },
 }
 
-/// Messages sent from the CAD plugin runner to the standalone OCSIDE application.
+/// Messages sent from the CAD plugin runner to the standalone OCIDE application.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum PluginToIde {
     Pong,
@@ -107,12 +107,12 @@ pub enum PluginToIde {
 /// Returns the path to the file storing the active IDE IPC port.
 pub fn port_file_path() -> std::path::PathBuf {
     if let Some(appdata) = std::env::var_os("APPDATA") {
-        std::path::PathBuf::from(appdata).join("OpenCADStudio").join("py_ide_port.txt")
+        std::path::PathBuf::from(appdata).join("OpenCADStudio").join("ocide_port.txt")
     } else if let Some(d) = std::env::var_os("XDG_CONFIG_HOME") {
-        std::path::PathBuf::from(d).join("OpenCADStudio").join("py_ide_port.txt")
+        std::path::PathBuf::from(d).join("OpenCADStudio").join("ocide_port.txt")
     } else if let Some(home) = std::env::var_os("HOME") {
-        std::path::PathBuf::from(home).join(".config").join("OpenCADStudio").join("py_ide_port.txt")
+        std::path::PathBuf::from(home).join(".config").join("OpenCADStudio").join("ocide_port.txt")
     } else {
-        std::path::PathBuf::from("py_ide_port.txt")
+        std::path::PathBuf::from("ocide_port.txt")
     }
 }

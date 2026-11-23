@@ -1,8 +1,8 @@
 // ============================================================================
 // DO NOT EDIT — PYTHON SUPPORT IS SHELVED / FROZEN.
-// Do NOT modify this file or add features to Python to mirror AutoLISP.
-// All active AutoLISP development belongs strictly in:
-//   - ../opencad-autolisp-engine (crates/lisp-core, crates/lisp-cad)
+// Do NOT modify this file or add features to Python to mirror OpenCAD LISP.
+// All active OpenCAD LISP development belongs strictly in:
+//   - ../opencad-lisp-engine (crates/lisp-core, crates/lisp-cad)
 //   - src/rust_lisp.rs
 // ============================================================================
 
@@ -110,8 +110,8 @@ pub fn get_or_create_session_globals<'py>(py: Python<'py>) -> PyResult<Bound<'py
         }
     }
 
-    if let Ok(Some(autolisp_mod)) = sys_modules.get_item("autolisp") {
-        globals.set_item("autolisp", &autolisp_mod)?;
+    if let Ok(Some(opencad_lisp_mod)) = sys_modules.get_item("opencad_lisp") {
+        globals.set_item("opencad_lisp", &opencad_lisp_mod)?;
     }
 
     Ok(globals)
@@ -120,7 +120,7 @@ pub fn get_or_create_session_globals<'py>(py: Python<'py>) -> PyResult<Bound<'py
 static LOADED_SCRIPTS: std::sync::LazyLock<std::sync::Mutex<std::collections::HashMap<String, String>>> =
     std::sync::LazyLock::new(|| std::sync::Mutex::new(std::collections::HashMap::new()));
 
-/// Store script code loaded or executed from OCSIDE into in-memory cache so CAD commands prioritize it.
+/// Store script code loaded or executed from OCIDE into in-memory cache so CAD commands prioritize it.
 pub fn store_loaded_script(title: &str, code: &str) {
     let mut map = LOADED_SCRIPTS.lock().unwrap();
     map.insert(title.to_string(), code.to_string());
@@ -177,7 +177,7 @@ pub fn store_loaded_script(title: &str, code: &str) {
     }
 }
 
-/// Look up script code loaded from OCSIDE by name, title, or stem.
+/// Look up script code loaded from OCIDE by name, title, or stem.
 pub fn get_loaded_script(name: &str) -> Option<String> {
     let map = LOADED_SCRIPTS.lock().unwrap();
     if let Some(code) = map.get(name) {
@@ -444,19 +444,19 @@ pub fn execute_code_debug_dispatched(
     true
 }
 
-/// Execute an AutoLISP code string.
+/// Execute an OpenCAD LISP code string.
 pub fn execute_lisp_raw(code: &str) -> Result<(), String> {
     execute_lisp_named(code, "script.lsp")
 }
 
-/// Execute an AutoLISP code string named by filename.
+/// Execute an OpenCAD LISP code string named by filename.
 pub fn execute_lisp_named(code: &str, _filename: &str) -> Result<(), String> {
     crate::py_sandbox::reset_entity_counter();
     Python::with_gil(|py| -> PyResult<()> {
         setup_python_environment(py)?;
         let globals = get_or_create_session_globals(py)?;
-        let autolisp_mod = globals.get_item("autolisp")?.expect("autolisp module");
-        let eval_lisp = autolisp_mod.getattr("eval_lisp")?;
+        let opencad_lisp_mod = globals.get_item("opencad_lisp")?.expect("opencad_lisp module");
+        let eval_lisp = opencad_lisp_mod.getattr("eval_lisp")?;
         eval_lisp.call1((code,))?;
         flush_python_output(py)?;
         if let Some(bridge) = crate::context::active_interactive() {
@@ -471,17 +471,17 @@ pub fn execute_lisp_named(code: &str, _filename: &str) -> Result<(), String> {
             let tb = err.traceback(py);
             if let Some(tb) = tb {
                 match tb.format() {
-                    Ok(formatted) => format!("AutoLISP Error:\n{}\n{}", err, formatted),
-                    Err(_) => format!("AutoLISP Error: {}", err),
+                    Ok(formatted) => format!("OpenCAD LISP Error:\n{}\n{}", err, formatted),
+                    Err(_) => format!("OpenCAD LISP Error: {}", err),
                 }
             } else {
-                format!("AutoLISP Error: {}", err)
+                format!("OpenCAD LISP Error: {}", err)
             }
         })
     })
 }
 
-/// Execute AutoLISP code asynchronously on a worker thread during command dispatch.
+/// Execute OpenCAD LISP code asynchronously on a worker thread during command dispatch.
 pub fn execute_lisp_dispatched(code: &str, host: &mut dyn HostApi) -> bool {
     let (tx, rx) = std::sync::mpsc::channel();
     let code_str = code.to_string();
@@ -899,7 +899,7 @@ pub fn execute_script_dispatched(
     let use_debug = crate::ide::server::has_active_clients();
 
     if use_debug {
-        host.push_info(&format!("Running/debugging '{script_name}' in OCSIDE..."));
+        host.push_info(&format!("Running/debugging '{script_name}' in OCIDE..."));
     }
 
     let (tx, rx) = std::sync::mpsc::channel();
@@ -1098,7 +1098,7 @@ pub fn execute_pycmd_dispatched(
     let use_debug = crate::ide::server::has_active_clients();
 
     if use_debug {
-        host.push_info(&format!("Running/debugging @command '{cmd_name}' in OCSIDE..."));
+        host.push_info(&format!("Running/debugging @command '{cmd_name}' in OCIDE..."));
     }
 
     let (tx, rx) = std::sync::mpsc::channel();
@@ -1169,8 +1169,8 @@ pub fn load_script_commands(script_name: &str, host: &mut dyn HostApi) -> usize 
         let is_lisp = path.extension().is_some_and(|ext| ext == "lsp" || ext == "lisp");
         if is_lisp {
             let globals = get_or_create_session_globals(py)?;
-            let autolisp_mod = globals.get_item("autolisp")?.expect("autolisp module");
-            let eval_lisp = autolisp_mod.getattr("eval_lisp")?;
+            let opencad_lisp_mod = globals.get_item("opencad_lisp")?.expect("opencad_lisp module");
+            let eval_lisp = opencad_lisp_mod.getattr("eval_lisp")?;
             eval_lisp.call1((code.as_str(),))?;
             flush_python_output(py)?;
             return Ok(());
@@ -1378,14 +1378,14 @@ pub(crate) fn setup_python_environment(py: Python<'_>) -> PyResult<()> {
         sys_modules.set_item("OC", &opencad_mod)?;
     }
 
-    if sys_modules.get_item("autolisp")?.is_none() {
-        const AUTOLISP_SRC: &str = include_str!("autolisp.py");
-        let c_src = std::ffi::CString::new(AUTOLISP_SRC).map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
-        let autolisp_mod = PyModule::from_code(py, &c_src, c"autolisp.py", c"autolisp")?;
+    if sys_modules.get_item("opencad_lisp")?.is_none() {
+        const OPENCAD_LISP_SRC: &str = include_str!("opencad_lisp.py");
+        let c_src = std::ffi::CString::new(OPENCAD_LISP_SRC).map_err(|e| pyo3::exceptions::PyValueError::new_err(e.to_string()))?;
+        let opencad_lisp_mod = PyModule::from_code(py, &c_src, c"opencad_lisp.py", c"opencad_lisp")?;
         let opencad_mod = sys_modules.get_item("opencad")?.expect("opencad module");
-        let init_fn = autolisp_mod.getattr("init_autolisp")?;
+        let init_fn = opencad_lisp_mod.getattr("init_opencad_lisp")?;
         init_fn.call1((&opencad_mod,))?;
-        sys_modules.set_item("autolisp", &autolisp_mod)?;
+        sys_modules.set_item("opencad_lisp", &opencad_lisp_mod)?;
     }
 
     // 3. Set up in-memory stdout/stderr capture using io.StringIO
@@ -1481,7 +1481,7 @@ pub(crate) fn setup_python_environment(py: Python<'_>) -> PyResult<()> {
     Ok(())
 }
 
-/// Flush captured stdout and stderr to the active host console and OCSIDE console.
+/// Flush captured stdout and stderr to the active host console and OCIDE console.
 pub(crate) fn flush_python_output(py: Python<'_>) -> PyResult<()> {
     let sys = py.import("sys")?;
 

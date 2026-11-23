@@ -1,28 +1,28 @@
 use std::sync::OnceLock;
 use ocs_plugin_api::ribbon::{CadModule, IconKind, ModuleEvent, RibbonGroup, RibbonItem, ToolDef};
 
-pub struct AutoLispRibbonModule;
+pub struct OpenCadLispRibbonModule;
 
-impl CadModule for AutoLispRibbonModule {
+impl CadModule for OpenCadLispRibbonModule {
     fn id(&self) -> &'static str {
         crate::MANIFEST.id
     }
 
     fn title(&self) -> &'static str {
-        "AutoLISP"
+        "OpenCAD LISP"
     }
 
     fn ribbon_groups(&self) -> &[RibbonGroup] {
         static GROUPS: OnceLock<Vec<RibbonGroup>> = OnceLock::new();
         GROUPS.get_or_init(|| {
             vec![RibbonGroup {
-                title: "AutoLISP Scripting",
+                title: "OpenCAD LISP Scripting",
                 tools: vec![
                     RibbonItem::LargeTool(ToolDef {
-                        id: "OCAIDE",
-                        label: "AutoLISP IDE",
+                        id: "OCIDE",
+                        label: "OpenCAD LISP IDE",
                         icon: IconKind::Glyph("IDE"),
-                        event: ModuleEvent::Command("OCAIDE".to_string()),
+                        event: ModuleEvent::Command("OCIDE".to_string()),
                     }),
                     RibbonItem::LargeTool(ToolDef {
                         id: "APPLOAD",

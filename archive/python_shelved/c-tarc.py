@@ -1,6 +1,6 @@
 """
 Tangent Arc (TARC) tool for OpenCAD Studio.
-Translated from AutoLISP c:TARC.
+Translated from OpenCAD LISP c:TARC.
 
 Usage:
   1. In OpenCAD Studio command line: type `TARC` (or `PY tarc`)

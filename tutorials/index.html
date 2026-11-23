@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OpenCAD AutoLISP UI Tutorials</title>
+  <title>OpenCAD LISP UI Tutorials</title>
   <style>
     :root {
       --bg: #0f1419;
@@ -77,20 +77,20 @@
 </head>
 <body>
   <div class="container">
-    <h1>OpenCAD AutoLISP UI Tutorials</h1>
+    <h1>OpenCAD LISP UI Tutorials</h1>
     <p class="lead">Build an interactive coordinate-entry tool that collects points into a table and draws connected lines or circles in a chosen color.</p>
 
     <div class="cards">
       <a class="card" href="panel_tutorial.html">
         <span class="tag">Tutorial 1</span>
         <h2>Side Panel (Dockable)</h2>
-        <p>Create a persistent dockable panel using <code>oca-panel-register</code>, button <code>action</code> expressions, <code>oca-panel-get</code>, and <code>oca-panel-update</code>.</p>
+        <p>Create a persistent dockable panel using <code>oc-panel-register</code>, button <code>action</code> expressions, <code>oc-panel-get</code>, and <code>oc-panel-update</code>.</p>
       </a>
 
       <a class="card" href="dialog_tutorial.html">
         <span class="tag">Tutorial 2</span>
         <h2>Modal Dialog (Reactive)</h2>
-        <p>Create a modal dialog using <code>oca-dialog</code>, <code>oca-dialog-show</code>, and an <code>on-dialog-action</code> callback to update the table live before drawing.</p>
+        <p>Create a modal dialog using <code>oc-dialog</code>, <code>oc-dialog-show</code>, and an <code>on-dialog-action</code> callback to update the table live before drawing.</p>
       </a>
     </div>
 
@@ -101,9 +101,9 @@
           <tr><th>Feature</th><th>Controls Used</th><th>Behavior</th></tr>
         </thead>
         <tbody>
-          <tr><td>Coordinate Input</td><td><code>oca-number</code> + <code>oca-button</code></td><td>Enter X and Y values and append them to the points table.</td></tr>
-          <tr><td>Point List</td><td><code>oca-table</code></td><td>Displays <code>(X, Y)</code> rows with add/delete support.</td></tr>
-          <tr><td>Options</td><td><code>oca-choice</code></td><td>Select a drawing color and entity type (<strong>Lines</strong> or <strong>Circles</strong>).</td></tr>
+          <tr><td>Coordinate Input</td><td><code>oc-number</code> + <code>oc-button</code></td><td>Enter X and Y values and append them to the points table.</td></tr>
+          <tr><td>Point List</td><td><code>oc-table</code></td><td>Displays <code>(X, Y)</code> rows with add/delete support.</td></tr>
+          <tr><td>Options</td><td><code>oc-choice</code></td><td>Select a drawing color and entity type (<strong>Lines</strong> or <strong>Circles</strong>).</td></tr>
           <tr><td>Draw Entities</td><td><code>command</code> + <code>CECOLOR</code></td><td><strong>Lines:</strong> connects P1&rarr;P2, P2&rarr;P3&hellip; <strong>Circles:</strong> places a circle at each point.</td></tr>
         </tbody>
       </table>

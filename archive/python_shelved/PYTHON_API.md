@@ -27,7 +27,7 @@ Additionally, all functions and their uppercase aliases (e.g., `add_line` and `A
 | Method | Arguments | Returns | Description |
 | :--- | :--- | :--- | :--- |
 | `get_point(prompt=None, base_point=None, rubber_band=None, color=None)` | `prompt: str` *(optional)*<br>`base_point: tuple \| list` *(optional)*<br>`rubber_band: tuple \| list` *(optional)*<br>`color: str \| int \| tuple` *(optional)* | `(x, y, z)` or `None` | Suspends script execution and prompts the user/CLI to pick a 3D coordinate point. Renders real-time native CAD rubber-band preview wires matching cursor movements. Returns `None` if cancelled (`Esc`). |
-| `get_dist(prompt_or_base=None, base_point_or_prompt=None)` | `prompt: str` *(optional)*<br>`base_point: tuple \| list` *(optional)* | `float` or `None` | Measures distance between two points (or from a given base point with a rubber-band line to the cursor). Returns `None` if cancelled. Also available in AutoLISP as `(getdist [pt] [prompt])`. |
+| `get_dist(prompt_or_base=None, base_point_or_prompt=None)` | `prompt: str` *(optional)*<br>`base_point: tuple \| list` *(optional)* | `float` or `None` | Measures distance between two points (or from a given base point with a rubber-band line to the cursor). Returns `None` if cancelled. Also available in OpenCAD LISP as `(getdist [pt] [prompt])`. |
 | `set_rubber_band(spec=None, color=None)` | `spec: tuple \| list \| str \| None`<br>`color: str \| int \| tuple` *(optional)* | `None` | Dynamically sets or clears (`None`) the real-time rubber band preview geometry. |
 | `get_entity(prompt=None)` | `prompt: str` *(optional)* | `(handle, (x, y, z))` or `None` | Prompts the user to pick an entity on canvas or enter a handle. Returns `(handle, (x, y, z))` or `None` if cancelled. |
 | `get_selection(prompt=None)` | `prompt: str` *(optional)* | `list[int]` or `None` | Prompts user to select entities until `Enter` (or empty string `""` in headless mode). If `prompt` is omitted and entities are already selected, returns them immediately. |
@@ -241,7 +241,7 @@ All entity creation functions return the unique 64-bit integer handle (`int`) as
 | `remove_entity(handle)` | `handle: int` | `bool` | Deletes the entity with the specified handle. Returns `True` if found and deleted. |
 | `entity_count()` | *None* | `int` | Returns the total count of entities in the active drawing. |
 | `get_entities(kind=None, layer=None)` | `kind: str` *(optional)*<br>`layer: str` *(optional)* | `list[dict]` | Returns a list of entity dictionaries containing metadata such as `handle`, `kind`, `layer`. |
-| `get_entity_data(handle)`<br>*(alias: `entget`)* | `handle: int` | `dict \| None` | Returns a dictionary containing the geometry and attributes of the entity (e.g. `start`/`end` for `LINE`, `center`/`radius`/`start_angle`/`end_angle` for `ARC`, `center`/`radius` for `CIRCLE`, `location` for `POINT`). Equivalent to AutoLISP's `(entget ent)`. |
+| `get_entity_data(handle)`<br>*(alias: `entget`)* | `handle: int` | `dict \| None` | Returns a dictionary containing the geometry and attributes of the entity (e.g. `start`/`end` for `LINE`, `center`/`radius`/`start_angle`/`end_angle` for `ARC`, `center`/`radius` for `CIRCLE`, `location` for `POINT`). Equivalent to OpenCAD LISP's `(entget ent)`. |
 
 ---
 
@@ -278,7 +278,7 @@ All entity creation functions return the unique 64-bit integer handle (`int`) as
 
 | Method / Decorator | Arguments | Returns | Description |
 | :--- | :--- | :--- | :--- |
-| `@command`<br>*(or `@command("ALIAS")`)* | `fn` or `name: str` *(optional)* | `function` | Decorator to expose any Python function as a top-level CAD command (AutoLISP-style). Functions remain directly callable/importable by other scripts. |
+| `@command`<br>*(or `@command("ALIAS")`)* | `fn` or `name: str` *(optional)* | `function` | Decorator to expose any Python function as a top-level CAD command (OpenCAD LISP-style). Functions remain directly callable/importable by other scripts. |
 | `cmd(cmd_str)`<br>*(or `execute_command`)* | `cmd_str: str` | `bool` | Executes an OpenCAD Studio command string (e.g. `oc.cmd("ZOOM E")`, `oc.cmd("LINE 0,0 PAUSE ENTER")`). Supports CAD-style `PAUSE` (`\`), `ENTER` token, trailing `\n`, and streaming commands across lines. |
 | `enter()` | *None* | `bool` | Sends an Enter keypress to advance or terminate the currently active CAD command (shortcut for `oc.cmd("ENTER")`). |
 | `register_command(name, target)`<br>*(alias: `add_alias`)* | `name: str`<br>`target: str` | `bool` | Registers a top-level command alias pointing to another command or script (e.g. `oc.register_command("DG", "PY draw_grid")`). |
@@ -366,7 +366,7 @@ if __name__ == "__main__":
     run([])
 ```
 
-### Example 3: AutoLISP-Style Module with Helpers & `@oc.command`s (`tools_demo.py`)
+### Example 3: OpenCAD LISP-Style Module with Helpers & `@oc.command`s (`tools_demo.py`)
 Save as `~/.config/OpenCADStudio/scripts/tools_demo.py`:
 ```python
 import opencad as oc

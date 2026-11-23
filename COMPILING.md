@@ -1,6 +1,6 @@
 # Compiling & Plugin Compatibility Guide
 
-This guide explains how to compile the **OpenCAD AutoLISP Runner** plugin (`opencad-autolisp-and-ide`) so that it is always 100% compatible with your current version of **OpenCAD Studio**.
+This guide explains how to compile the **OpenCAD LISP Runner** plugin (`opencad-lisp-and-ide`) so that it is always 100% compatible with your current version of **OpenCAD Studio**.
 
 ---
 
@@ -24,7 +24,7 @@ When OpenCAD Studio updates its `acadrust` dependency (e.g., when merging an ups
 We provide a PowerShell script that automatically inspects OpenCAD Studio, aligns dependencies, updates locks, compiles the release binaries, and installs them directly into your `%APPDATA%` plugins directory:
 
 ```powershell
-# Run from the opencad-autolisp-and-ide repository root:
+# Run from the opencad-lisp-and-ide repository root:
 powershell -ExecutionPolicy Bypass -File .\scripts\sync-acadrust.ps1 -Install
 ```
 
@@ -32,9 +32,9 @@ powershell -ExecutionPolicy Bypass -File .\scripts\sync-acadrust.ps1 -Install
 1. Auto-locates your `OpenCADStudio-fork` or `OpenCADStudio` repository.
 2. Extracts the exact `acadrust` git revision and full 40-character commit hash from `OpenCADStudio/Cargo.lock`.
 3. Updates `plugin.toml` with `acadrust_source = "git+https://...#<full_commit_hash>"`.
-4. Runs `cargo update -p acadrust` in `opencad-autolisp-and-ide`.
+4. Runs `cargo update -p acadrust` in `opencad-lisp-and-ide`.
 5. Compiles release binaries (`cargo build --release`).
-6. Deploys `plugin.toml`, `opencad.autolisp_and_ide.dll`, and `opencad_autolisp_ide.exe` to `%APPDATA%\OpenCADStudio\plugins\opencad.autolisp_and_ide\`.
+6. Deploys `plugin.toml`, `opencad.lisp_and_ide.dll`, and `opencad_lisp_ide.exe` to `%APPDATA%\OpenCADStudio\plugins\opencad.lisp_and_ide\`.
 
 ---
 
@@ -77,13 +77,13 @@ cargo build --release
 Copy **both** `plugin.toml` and the compiled library into your user plugins folder:
 
 - **Windows**:
-  - Copy `plugin.toml` &rarr; `%APPDATA%\OpenCADStudio\plugins\opencad.autolisp_and_ide\plugin.toml`
-  - Copy `target\release\opencad_autolisp.dll` &rarr; `%APPDATA%\OpenCADStudio\plugins\opencad.autolisp_and_ide\opencad.autolisp_and_ide.dll`
-  - (Optional) Copy `target\release\opencad_autolisp_ide.exe` &rarr; `%APPDATA%\OpenCADStudio\plugins\opencad.autolisp_and_ide\opencad_autolisp_ide.exe`
+  - Copy `plugin.toml` &rarr; `%APPDATA%\OpenCADStudio\plugins\opencad.lisp_and_ide\plugin.toml`
+  - Copy `target\release\opencad_lisp.dll` &rarr; `%APPDATA%\OpenCADStudio\plugins\opencad.lisp_and_ide\opencad.lisp_and_ide.dll`
+  - (Optional) Copy `target\release\opencad_lisp_ide.exe` &rarr; `%APPDATA%\OpenCADStudio\plugins\opencad.lisp_and_ide\opencad_lisp_ide.exe`
 
 - **Linux**:
-  - Copy `plugin.toml` &rarr; `~/.config/OpenCADStudio/plugins/opencad.autolisp_and_ide/plugin.toml`
-  - Copy `target/release/libopencad_autolisp.so` &rarr; `~/.config/OpenCADStudio/plugins/opencad.autolisp_and_ide/opencad.autolisp_and_ide.so`
+  - Copy `plugin.toml` &rarr; `~/.config/OpenCADStudio/plugins/opencad.lisp_and_ide/plugin.toml`
+  - Copy `target/release/libopencad_lisp.so` &rarr; `~/.config/OpenCADStudio/plugins/opencad.lisp_and_ide/opencad.lisp_and_ide.so`
 
 ---
 

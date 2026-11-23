@@ -2,13 +2,13 @@
 // On Windows release builds, hide the console window
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-use opencad_autolisp::ide::app::IdeApp;
+use opencad_lisp::ide::app::IdeApp;
 
 #[cfg(windows)]
 fn ensure_single_instance() -> bool {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
-    let name: Vec<u16> = OsStr::new("Local\\OpenCAD_AutoLISP_IDE_SingleInstance")
+    let name: Vec<u16> = OsStr::new("Local\\OpenCAD_LISP_IDE_SingleInstance")
         .encode_wide()
         .chain(std::iter::once(0))
         .collect();
@@ -19,7 +19,7 @@ fn ensure_single_instance() -> bool {
         }
         let handle = CreateMutexW(std::ptr::null_mut(), 1, name.as_ptr());
         if GetLastError() == 183 { // ERROR_ALREADY_EXISTS
-            opencad_autolisp::ide::app::force_foreground_ide();
+            opencad_lisp::ide::app::force_foreground_ide();
             return false;
         }
         let _ = handle;

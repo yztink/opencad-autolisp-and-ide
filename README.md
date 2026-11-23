@@ -1,21 +1,21 @@
-# OpenCAD AutoLISP Runner & OCAIDE Editor Plugin
+# OpenCAD LISP Runner & OCIDE Editor Plugin
 
 > [!WARNING]
 > **Status: Extreme Alpha / Active Development**  
 > This project is in an early experimental stage and under active development. APIs, internal structures, and features are subject to rapid change. Expect rough edges and ongoing improvements.
 
-A complete AutoLISP scripting, interactive command runner, and integrated development environment (OCAIDE) for **OpenCAD Studio**.
+A complete OpenCAD LISP scripting, interactive command runner, and integrated development environment (OCIDE) for **OpenCAD Studio**.
 
-Built with Rust and [Iced](https://github.com/iced-rs/iced), this plugin enables loading, running, and debugging AutoLISP routines and scripts directly inside OpenCAD Studio with zero custom modifications required to the CAD engine.
+Built with Rust and [Iced](https://github.com/iced-rs/iced), this plugin enables loading, running, and debugging OpenCAD LISP routines and scripts directly inside OpenCAD Studio with zero custom modifications required to the CAD engine.
 
 ---
 
 ## Features
 
-- **Integrated OCAIDE Editor**: A full-featured native GUI development environment tailored for AutoLISP:
+- **Integrated OCIDE Editor**: A full-featured native GUI development environment tailored for OpenCAD LISP:
   - Tabbed editor buffers with syntax highlighting and line numbers.
   - S-expression bracket matching, structural auto-indent, and smart Enter.
-  - Visual LISP (VLIDE) formatting conventions and symbol casing normalization.
+  - Classic LISP formatting conventions and symbol casing normalization.
   - In-editor Find & Replace bar (`Ctrl+F`).
   - Interactive REPL console with command history navigation.
 - **Visual S-Expression Debugger**:
@@ -32,19 +32,19 @@ Built with Rust and [Iced](https://github.com/iced-rs/iced), this plugin enables
   - Selection set handling (`(ssget)`, `(sslength)`, `(ssname)`).
   - Symbol table access (`(tblsearch)` and `(tblnext)` for layers, line types, text styles, blocks, views, etc.).
 - **Dynamic GUI Panels & Dialogs**:
-  - Custom sidebar panels via `(ocl-panel-register ...)` and `(ocl-panel-get ...)`.
-  - DCL and native dialog prompts (`(ocl-dialog ...)`).
+  - Custom sidebar panels via `(oc-panel-register ...)` and `(oc-panel-get ...)`.
+  - DCL and native dialog prompts (`(oc-dialog ...)`).
 - **Dual Mode Execution**:
-  - Run embedded inside OpenCAD Studio via the ribbon button or typing `OCAIDE`.
-  - Run standalone (`cargo run --bin opencad_autolisp_ide`) to edit and inspect AutoLISP routines independently.
+  - Run embedded inside OpenCAD Studio via the ribbon button or typing `OCIDE`.
+  - Run standalone (`cargo run --bin opencad_lisp_ide --features ide-gui`) to edit and inspect OpenCAD LISP routines independently.
 
 ---
 
 ## Architecture
 
-This plugin connects OpenCAD Studio to the authoritative **[opencad-autolisp-engine](../opencad-autolisp-engine)**:
+This plugin connects OpenCAD Studio to the authoritative **[opencad-lisp-engine](../opencad-lisp-engine)**:
 - **`src/rust_lisp.rs`**: Implements the `CadBridge` trait against OpenCAD Studio's V4 host IPC.
-- **`src/ide/`**: Contains the full Iced-based OCAIDE interface, LSP/RPC server, and debugging coordinator.
+- **`src/ide/`**: Contains the full Iced-based OCIDE interface, LSP/RPC server, and debugging coordinator.
 - **`src/lib.rs`**: Exposes the OpenCAD Studio V4 C-ABI plugin entry points (`on_load`, `dispatch`, `on_notification`).
 
 ---
@@ -57,25 +57,26 @@ This plugin connects OpenCAD Studio to the authoritative **[opencad-autolisp-eng
 
 ### Build (Release)
 ```bash
-cargo build --release
+cargo build --release --lib
+cargo build --release --bin opencad_lisp_ide --features ide-gui
 ```
 
 This compiles:
-- `target/release/opencad_autolisp.dll` (or `.so` / `.dylib`): The OpenCAD Studio plugin library.
-- `target/release/opencad_autolisp_ide.exe`: The standalone OCAIDE IDE application.
+- `target/release/opencad_lisp.dll` (or `.so` / `.dylib`): The OpenCAD Studio plugin library.
+- `target/release/opencad_lisp_ide.exe`: The standalone OCIDE IDE application.
 
 ### Installation in OpenCAD Studio
 Copy `plugin.toml` and the compiled library into your OpenCAD Studio user plugins folder:
 - **Windows**:
-  - Copy `plugin.toml` &rarr; `%APPDATA%\OpenCADStudio\plugins\opencad.autolisp_and_ide\plugin.toml`
-  - Copy `target\release\opencad_autolisp.dll` &rarr; `%APPDATA%\OpenCADStudio\plugins\opencad.autolisp_and_ide\opencad.autolisp_and_ide.dll`
+  - Copy `plugin.toml` &rarr; `%APPDATA%\OpenCADStudio\plugins\opencad.lisp_and_ide\plugin.toml`
+  - Copy `target\release\opencad_lisp.dll` &rarr; `%APPDATA%\OpenCADStudio\plugins\opencad.lisp_and_ide\opencad.lisp_and_ide.dll`
 - **Linux**:
-  - Copy `plugin.toml` &rarr; `~/.config/OpenCADStudio/plugins/opencad.autolisp_and_ide/plugin.toml`
-  - Copy `target/release/libopencad_autolisp.so` &rarr; `~/.config/OpenCADStudio/plugins/opencad.autolisp_and_ide/opencad.autolisp_and_ide.so`
+  - Copy `plugin.toml` &rarr; `~/.config/OpenCADStudio/plugins/opencad.lisp_and_ide/plugin.toml`
+  - Copy `target/release/libopencad_lisp.so` &rarr; `~/.config/OpenCADStudio/plugins/opencad.lisp_and_ide/opencad.lisp_and_ide.so`
 
 ---
 
-## Quick Start in AutoLISP
+## Quick Start in OpenCAD LISP
 
 Save your `.lsp` routines in your scripts directory (e.g. `%APPDATA%\OpenCADStudio\scripts\` on Windows):
 
@@ -99,7 +100,7 @@ Save your `.lsp` routines in your scripts directory (e.g. `%APPDATA%\OpenCADStud
 )
 ```
 
-Type `DRAW_BOX` in the OpenCAD Studio console to run it, or open `OCAIDE` to set breakpoints and step through execution!
+Type `DRAW_BOX` in the OpenCAD Studio console to run it, or open `OCIDE` to set breakpoints and step through execution!
 
 ---
 

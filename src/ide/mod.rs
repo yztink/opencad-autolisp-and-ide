@@ -86,7 +86,7 @@ pub enum SyntaxColorTarget {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SyntaxPreset {
     Base16Mocha,
-    VlideClassic,
+    ClassicLight,
     Monokai,
     SolarizedDark,
 }
@@ -108,7 +108,7 @@ pub fn default_true() -> bool {
     true
 }
 
-/// User-customizable settings for the OpenCAD AutoLISP IDE.
+/// User-customizable settings for the OpenCAD LISP IDE.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct IdeSettings {
@@ -187,8 +187,8 @@ impl IdeSettings {
         }
         if self.syntax_colors == SyntaxColors::base16_mocha() {
             "Base16 Mocha (Default)".to_string()
-        } else if self.syntax_colors == SyntaxColors::vlide_classic() {
-            "VLIDE Classic".to_string()
+        } else if self.syntax_colors == SyntaxColors::classic_light() {
+            "Classic Light".to_string()
         } else if self.syntax_colors == SyntaxColors::monokai() {
             "Monokai".to_string()
         } else if self.syntax_colors == SyntaxColors::solarized_dark() {
@@ -245,7 +245,7 @@ impl IdeSettings {
         self.custom_functions_set.contains(&name.to_ascii_lowercase())
     }
 
-    /// Check whether an identifier is an exact match for a recognized valid AutoLISP function,
+    /// Check whether an identifier is an exact match for a recognized valid OpenCAD LISP function,
     /// special form, or custom user function.
     pub fn is_valid_function(&self, name: &str) -> bool {
         let trimmed = name.trim().trim_start_matches('\'');
@@ -282,7 +282,7 @@ impl IdeSettings {
         ) {
             return true;
         }
-        // 3. AutoLISP special forms / keyword functions
+        // 3. OpenCAD LISP special forms / keyword functions
         if matches!(
             lower.as_str(),
             "defun"
@@ -417,13 +417,13 @@ impl IdeSettings {
 
     pub fn settings_file_path() -> PathBuf {
         if let Some(appdata) = std::env::var_os("APPDATA") {
-            PathBuf::from(appdata).join("OpenCADStudio").join("ocside_settings.json")
+            PathBuf::from(appdata).join("OpenCADStudio").join("ocide_settings.json")
         } else if let Some(d) = std::env::var_os("XDG_CONFIG_HOME") {
-            PathBuf::from(d).join("OpenCADStudio").join("ocside_settings.json")
+            PathBuf::from(d).join("OpenCADStudio").join("ocide_settings.json")
         } else if let Some(home) = std::env::var_os("HOME") {
-            PathBuf::from(home).join(".config").join("OpenCADStudio").join("ocside_settings.json")
+            PathBuf::from(home).join(".config").join("OpenCADStudio").join("ocide_settings.json")
         } else {
-            PathBuf::from("ocside_settings.json")
+            PathBuf::from("ocide_settings.json")
         }
     }
 
@@ -607,7 +607,7 @@ impl IdeTab {
     pub const MAX_UNDO_DEPTH: usize = 200;
 
     pub fn new_empty(title: String) -> Self {
-        let default_code = ";; OpenCAD Studio AutoLISP script\n";
+        let default_code = ";; OpenCAD LISP script\n";
         Self {
             path: None,
             title,
@@ -871,7 +871,7 @@ pub struct ContextMenuState {
     pub has_selection: bool,
 }
 
-/// All interactive messages handled by OCSIDE.
+/// All interactive messages handled by OCIDE.
 #[derive(Debug, Clone)]
 pub enum IdeMessage {
     AutocompleteNext,

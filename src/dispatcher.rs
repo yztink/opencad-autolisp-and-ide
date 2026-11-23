@@ -107,8 +107,8 @@ pub fn dispatch_command(host: &mut dyn HostApi, cmd: &str) -> bool {
             host.start_interactive(Box::new(crate::appload::ApploadCommand::startup_only()));
             true
         }
-        "OCAIDE" => {
-            host.push_info("Opening OpenCAD AutoLISP IDE (OCAIDE)...");
+        "OCIDE" => {
+            host.push_info("Opening OpenCAD LISP IDE (OCIDE)...");
             launch_ide();
             true
         }
@@ -118,16 +118,16 @@ pub fn dispatch_command(host: &mut dyn HostApi, cmd: &str) -> bool {
             let cmds = crate::rust_lisp::get_registered_lisp_commands_for_tab(host.tab_id());
 
             if !cmds.is_empty() {
-                host.push_info(&format!("Registered AutoLISP commands ({}):", cmds.len()));
+                host.push_info(&format!("Registered OpenCAD LISP commands ({}):", cmds.len()));
                 for name in cmds {
                     host.push_output(&format!("  • {}", name));
                 }
             }
 
             if scripts.is_empty() {
-                host.push_info(&format!("No AutoLISP (.lsp) files found in {}", dir.display()));
+                host.push_info(&format!("No OpenCAD LISP (.lsp) files found in {}", dir.display()));
             } else {
-                host.push_info(&format!("Available AutoLISP (.lsp) files ({}):", scripts.len()));
+                host.push_info(&format!("Available OpenCAD LISP (.lsp) files ({}):", scripts.len()));
                 for s in scripts {
                     host.push_output(&format!("  • LSP {s}.lsp"));
                 }
@@ -140,7 +140,7 @@ pub fn dispatch_command(host: &mut dyn HostApi, cmd: &str) -> bool {
                     let scripts = crate::rust_lisp::list_lisp_scripts();
                     let loaded = crate::rust_lisp::auto_load_lisp_scripts(host);
                     host.push_info(&format!(
-                        "AutoLISP runner reloaded: {} .lsp scripts in {}, {} new c:commands registered",
+                        "OpenCAD LISP runner reloaded: {} .lsp scripts in {}, {} new c:commands registered",
                         scripts.len(),
                         dir.display(),
                         loaded
@@ -160,20 +160,20 @@ pub fn dispatch_command(host: &mut dyn HostApi, cmd: &str) -> bool {
         "LSPERR" | "LISPERR" => {
             if let Some(err) = crate::rust_lisp::get_last_lisp_error() {
                 if crate::ide::server::has_active_clients() {
-                    crate::ide::server::ide_log(&format!("\n[Last AutoLISP Error] {err}\n"), true);
+                    crate::ide::server::ide_log(&format!("\n[Last OpenCAD LISP Error] {err}\n"), true);
                 }
-                crate::rust_lisp::push_formatted_error(host, "Last AutoLISP Error", &err);
+                crate::rust_lisp::push_formatted_error(host, "Last OpenCAD LISP Error", &err);
             } else {
-                host.push_info("No AutoLISP errors recorded in this session.");
+                host.push_info("No OpenCAD LISP errors recorded in this session.");
             }
             true
         }
         "PY" | "PYRUN" | "PYLOAD" | "PYCMD" | "PYDEBUG" | "PYDEBUG_CMD" | "PYTRUST" | "PYUNTRUST" | "PYTRUST_LIST" | "PYSECURITY" => {
-            host.push_info("Python support is currently shelved. Use AutoLISP (LSP, APPLOAD, LSPRUN, or direct S-expressions).");
+            host.push_info("Python support is currently shelved. Use OpenCAD LISP (LSP, APPLOAD, LSPRUN, or direct S-expressions).");
             true
         }
         _ => {
-            // Check if matches a registered AutoLISP command in the active drawing tab (from defun c:NAME)
+            // Check if matches a registered OpenCAD LISP command in the active drawing tab (from defun c:NAME)
             if crate::rust_lisp::has_lisp_command_for_tab(host.tab_id(), &primary) {
                 let args: Vec<String> = if rest.is_empty() {
                     Vec::new()
@@ -197,18 +197,18 @@ pub fn launch_ide() {
     if let Ok(path) = std::env::var("OCS_PLUGIN_CDYLIB_PATH") {
         let p = std::path::PathBuf::from(path);
         if let Some(dir) = p.parent() {
-            exe_candidates.push(dir.join("opencad_autolisp_ide.exe"));
-            exe_candidates.push(dir.join("opencad_autolisp_ide"));
+            exe_candidates.push(dir.join("opencad_lisp_ide.exe"));
+            exe_candidates.push(dir.join("opencad_lisp_ide"));
         }
     }
     if let Ok(curr) = std::env::current_exe() {
         if let Some(dir) = curr.parent() {
-            exe_candidates.push(dir.join("opencad_autolisp_ide.exe"));
-            exe_candidates.push(dir.join("opencad_autolisp_ide"));
+            exe_candidates.push(dir.join("opencad_lisp_ide.exe"));
+            exe_candidates.push(dir.join("opencad_lisp_ide"));
         }
     }
-    exe_candidates.push(std::path::PathBuf::from("opencad_autolisp_ide.exe"));
-    exe_candidates.push(std::path::PathBuf::from("opencad_autolisp_ide"));
+    exe_candidates.push(std::path::PathBuf::from("opencad_lisp_ide.exe"));
+    exe_candidates.push(std::path::PathBuf::from("opencad_lisp_ide"));
 
     for candidate in exe_candidates {
         if candidate.exists() {
@@ -220,7 +220,7 @@ pub fn launch_ide() {
             return;
         }
     }
-    let _ = std::process::Command::new("opencad_autolisp_ide")
+    let _ = std::process::Command::new("opencad_lisp_ide")
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())

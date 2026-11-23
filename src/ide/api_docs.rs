@@ -1,4 +1,4 @@
-//! AutoLISP, Visual LISP, ActiveX, and OpenCAD Native UI API Reference Catalog.
+//! OpenCAD LISP, Extended LISP, Object Model, and OpenCAD Native UI API Reference Catalog.
 //!
 //! Provides function signatures, required vs [optional] parameter conventions,
 //! descriptions, snippets, and minimum required DXF group codes for CAD entities.
@@ -1085,7 +1085,7 @@ pub const API_DOCS: &[ApiDoc] = &[
     ApiDoc {
         name: "load",
         signature: "(load filename-str [onfailure]) -> value",
-        description: "Loads and evaluates an AutoLISP file (.lsp).",
+        description: "Loads and evaluates an OpenCAD LISP file (.lsp).",
         snippet: "(load \"myscript\")\n",
         category: "Console & Files",
         dxf_summary: None,
@@ -1107,13 +1107,13 @@ pub const API_DOCS: &[ApiDoc] = &[
         dxf_summary: None,
     },
 
-    // ── 11. Visual LISP Extensions (vl-*) ────────────────────────────────────
+    // ── 11. Extended LISP Functions (vl-*) ───────────────────────────────────
     ApiDoc {
         name: "vl-load-com",
         signature: "(vl-load-com) -> T",
-        description: "Initializes Visual LISP and ActiveX COM environment.",
+        description: "Initializes extended LISP and object model environment.",
         snippet: "(vl-load-com)\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1121,7 +1121,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-string-search pattern str [start-pos]) -> integer | nil",
         description: "Returns 0-based index of pattern in str, or nil if not found.",
         snippet: "(vl-string-search \"CAD\" \"OpenCAD\") ; => 4\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1129,7 +1129,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-string-subst new-str pattern str [start-pos]) -> string",
         description: "Replaces the first occurrence of pattern in str with new-str.",
         snippet: "(vl-string-subst \"2D\" \"3D\" \"3D Model\") ; => \"2D Model\"\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1137,7 +1137,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-string-trim char-set str) -> string",
         description: "Strips characters in char-set from both ends of str.",
         snippet: "(vl-string-trim \" \\t\\n\" \"  hello  \") ; => \"hello\"\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1145,7 +1145,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-string-left-trim char-set str) -> string",
         description: "Strips characters in char-set from the beginning of str.",
         snippet: "(vl-string-left-trim \" \" \"  abc\") ; => \"abc\"\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1153,7 +1153,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-string-right-trim char-set str) -> string",
         description: "Strips characters in char-set from the end of str.",
         snippet: "(vl-string-right-trim \" \" \"abc  \") ; => \"abc\"\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1161,7 +1161,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-string-translate src-set dest-set str) -> string",
         description: "Replaces characters in str matching src-set with corresponding characters in dest-set.",
         snippet: "(vl-string-translate \"abc\" \"123\" \"cab\") ; => \"312\"\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1169,7 +1169,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-string->list str) -> integer-list",
         description: "Converts a string into a list of ASCII character codes.",
         snippet: "(vl-string->list \"AB\") ; => (65 66)\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1177,7 +1177,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-list->string int-list) -> string",
         description: "Converts a list of ASCII integer codes into a string.",
         snippet: "(vl-list->string '(65 66)) ; => \"AB\"\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1185,7 +1185,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-remove elem list) -> list",
         description: "Removes all elements equal to elem from list.",
         snippet: "(vl-remove 0 '(1 0 2 0 3)) ; => (1 2 3)\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1193,7 +1193,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-remove-if predicate-fn list) -> list",
         description: "Removes all elements from list for which predicate-fn returns non-nil.",
         snippet: "(vl-remove-if 'minusp '(-1 2 -3 4)) ; => (2 4)\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1201,7 +1201,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-remove-if-not predicate-fn list) -> list",
         description: "Keeps only elements from list for which predicate-fn returns non-nil (filter).",
         snippet: "(vl-remove-if-not 'numberp '(1 \"A\" 2 \"B\")) ; => (1 2)\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1209,7 +1209,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-position elem list) -> integer | nil",
         description: "Returns the 0-based index of elem in list, or nil if not found.",
         snippet: "(vl-position \"B\" '(\"A\" \"B\" \"C\")) ; => 1\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1217,7 +1217,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-sort list compare-fn) -> sorted-list",
         description: "Sorts list using the provided comparison function.",
         snippet: "(vl-sort '(5 2 8 1) '<) ; => (1 2 5 8)\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1225,7 +1225,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-sort-i list compare-fn) -> index-list",
         description: "Returns a list of 0-based indices corresponding to the sorted order of elements in list.",
         snippet: "(vl-sort-i '(50 20 80) '<) ; => (1 0 2)\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1233,7 +1233,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-every predicate-fn list1 [list2 ...]) -> boolean",
         description: "Returns T if predicate-fn returns non-nil for every element in list(s).",
         snippet: "(vl-every 'numberp '(1 2 3))\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1241,7 +1241,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-some predicate-fn list1 [list2 ...]) -> value",
         description: "Returns the first non-nil result of predicate-fn applied to elements of list(s).",
         snippet: "(vl-some 'minusp '(1 -2 3)) ; => T\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1249,7 +1249,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-filename-base filepath-str) -> string",
         description: "Extracts the base file name from a path without directory or extension.",
         snippet: "(vl-filename-base \"C:/drawings/part.dwg\") ; => \"part\"\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1257,7 +1257,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-filename-directory filepath-str) -> string | nil",
         description: "Extracts the directory portion of a file path.",
         snippet: "(vl-filename-directory \"C:/drawings/part.dwg\") ; => \"C:/drawings\"\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1265,7 +1265,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-filename-extension filepath-str) -> string | nil",
         description: "Extracts the extension from a file path including the leading dot (e.g. \".dwg\").",
         snippet: "(vl-filename-extension \"part.dwg\") ; => \".dwg\"\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1273,7 +1273,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-file-copy src-path dst-path [append-flag]) -> integer | nil",
         description: "Copies or appends a file on disk.",
         snippet: "(vl-file-copy \"src.txt\" \"dst.txt\")\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1281,7 +1281,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-file-delete filepath-str) -> boolean",
         description: "Deletes a file from the disk.",
         snippet: "(vl-file-delete \"temp.txt\")\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1289,7 +1289,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-file-size filepath-str) -> integer | nil",
         description: "Returns the size of a file in bytes, or nil if file not found.",
         snippet: "(vl-file-size \"part.dxf\")\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1297,7 +1297,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-directory-files [dir [pattern [mode]]]) -> string-list",
         description: "Lists files or folders in dir. mode: -1=dirs only, 1=files only, 0=all.",
         snippet: "(vl-directory-files \".\" \"*.lsp\" 1)\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1305,7 +1305,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-catch-all-apply func arg-list) -> value | error-object",
         description: "Safely invokes func with args catching any execution error without aborting.",
         snippet: "(setq res (vl-catch-all-apply '/ '(10 0)))\n(if (vl-catch-all-error-p res)\n  (princ (vl-catch-all-error-message res))\n)\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1313,7 +1313,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-catch-all-error-p obj) -> boolean",
         description: "Returns T if obj is an error object returned by vl-catch-all-apply, nil otherwise.",
         snippet: "(vl-catch-all-error-p res)\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1321,41 +1321,41 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vl-catch-all-error-message error-obj) -> string",
         description: "Extracts the error message string from an error object returned by vl-catch-all-apply.",
         snippet: "(princ (vl-catch-all-error-message res))\n",
-        category: "Visual LISP",
+        category: "LISP Extensions",
         dxf_summary: None,
     },
 
-    // ── 12. ActiveX Emulation (vlax-*) ──────────────────────────────────────
+    // ── 12. Object Model Emulation (vlax-*) ─────────────────────────────────
     ApiDoc {
         name: "vlax-ename->vla-object",
         signature: "(vlax-ename->vla-object ename) -> vla-object",
-        description: "Converts an AutoLISP entity name (ENAME) to a VLA ActiveX object wrapper.",
+        description: "Converts an OpenCAD LISP entity name (ENAME) to a VLA object wrapper.",
         snippet: "(setq obj (vlax-ename->vla-object (entlast)))\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
     ApiDoc {
         name: "vlax-vla-object->ename",
         signature: "(vlax-vla-object->ename vla-obj) -> ename",
-        description: "Converts a VLA ActiveX object wrapper back to an AutoLISP entity name (ENAME).",
+        description: "Converts a VLA object wrapper back to an OpenCAD LISP entity name (ENAME).",
         snippet: "(setq ent (vlax-vla-object->ename obj))\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
     ApiDoc {
         name: "vlax-get-property",
         signature: "(vlax-get-property vla-obj prop-sym) -> value",
-        description: "Retrieves an ActiveX property (e.g. 'Layer, 'Radius, 'Center, 'Area, 'Length) from vla-obj.",
+        description: "Retrieves an object property (e.g. 'Layer, 'Radius, 'Center, 'Area, 'Length) from vla-obj.",
         snippet: "(setq r (vlax-get-property obj 'Radius))\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
     ApiDoc {
         name: "vlax-put-property",
         signature: "(vlax-put-property vla-obj prop-sym value) -> nil",
-        description: "Sets an ActiveX property (e.g. 'Layer, 'Radius, 'Color) on vla-obj.",
+        description: "Sets an object property (e.g. 'Layer, 'Radius, 'Color) on vla-obj.",
         snippet: "(vlax-put-property obj 'Layer \"WALLS\")\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1363,7 +1363,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vlax-get vla-obj prop-sym) -> value",
         description: "Shorthand alias for vlax-get-property with automatic type conversion.",
         snippet: "(setq r (vlax-get obj 'Radius))\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1371,15 +1371,15 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vlax-put vla-obj prop-sym value) -> nil",
         description: "Shorthand alias for vlax-put-property with automatic type conversion.",
         snippet: "(vlax-put obj 'Layer \"0\")\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
     ApiDoc {
         name: "vlax-invoke-method",
         signature: "(vlax-invoke-method vla-obj method-sym [args ...]) -> value",
-        description: "Invokes an ActiveX method (e.g. 'Delete, 'Update) on vla-obj.",
+        description: "Invokes an object method (e.g. 'Delete, 'Update) on vla-obj.",
         snippet: "(vlax-invoke-method obj 'Delete)\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1387,7 +1387,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vlax-invoke vla-obj method-sym [args ...]) -> value",
         description: "Shorthand alias for vlax-invoke-method with automatic argument conversion.",
         snippet: "(vlax-invoke obj 'Update)\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1395,7 +1395,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vlax-ldata-get dict-key item-key [default-val]) -> value",
         description: "Retrieves Lisp data stored under dict-key and item-key in the drawing's extension dictionary.",
         snippet: "(setq val (vlax-ldata-get \"MyApp\" \"Scale\" 1.0))\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1403,7 +1403,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vlax-ldata-put dict-key item-key value) -> value",
         description: "Stores arbitrary Lisp data persistently in the drawing under dict-key and item-key.",
         snippet: "(vlax-ldata-put \"MyApp\" \"Scale\" 2.5)\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1411,7 +1411,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vlax-ldata-delete dict-key item-key) -> boolean",
         description: "Deletes an LData item from the drawing dictionary.",
         snippet: "(vlax-ldata-delete \"MyApp\" \"Scale\")\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1419,7 +1419,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vlax-ldata-list dict-key) -> alist",
         description: "Lists all (key . value) pairs stored under dict-key.",
         snippet: "(vlax-ldata-list \"MyApp\")\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1427,7 +1427,7 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vlax-curve-getstartpoint curve-ent) -> (x y z)",
         description: "Returns the 3D start point of a curve entity (Line, Arc, Polyline, Circle).",
         snippet: "(setq p1 (vlax-curve-getstartpoint (entlast)))\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
     ApiDoc {
@@ -1435,370 +1435,370 @@ pub const API_DOCS: &[ApiDoc] = &[
         signature: "(vlax-curve-getendpoint curve-ent) -> (x y z)",
         description: "Returns the 3D end point of a curve entity (Line, Arc, Polyline, Circle).",
         snippet: "(setq p2 (vlax-curve-getendpoint (entlast)))\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
     ApiDoc {
         name: "vlax-make-variant",
         signature: "(vlax-make-variant [value [type-int]]) -> variant",
-        description: "Wraps a Lisp value into an ActiveX variant container.",
+        description: "Wraps a Lisp value into a variant container.",
         snippet: "(setq var (vlax-make-variant 100.0))\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
     ApiDoc {
         name: "vlax-variant-value",
         signature: "(vlax-variant-value variant) -> value",
-        description: "Unwraps and returns the raw Lisp value from an ActiveX variant.",
+        description: "Unwraps and returns the raw Lisp value from a variant.",
         snippet: "(vlax-variant-value var)\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
     ApiDoc {
         name: "vlax-make-safearray",
         signature: "(vlax-make-safearray type-int bounds-list) -> safearray",
-        description: "Creates an ActiveX SafeArray container.",
+        description: "Creates a SafeArray container.",
         snippet: "(vlax-make-safearray 5 '(0 . 2))\n",
-        category: "ActiveX",
+        category: "Object Model",
         dxf_summary: None,
     },
 
-    // ── 13. OpenCAD Native UI Dialogs & Panels (oca-*) ──────────────────────
+    // ── 13. OpenCAD Native UI Dialogs & Panels (oc-*) ──────────────────────
     ApiDoc {
-        name: "oca-dialog",
-        signature: "(oca-dialog title [options] row1 [row2 ...]) -> dialog-def",
+        name: "oc-dialog",
+        signature: "(oc-dialog title [options] row1 [row2 ...]) -> dialog-def",
         description: "Constructs a modal dialog definition with interactive controls. Parameters:
 - title (string): Dialog window title
 - [options] (optional alist): '((width . 400.0) (submit . \"OK\") (cancel . \"Cancel\"))
 - row1 [row2 ...] (controls): One or more rows, columns, or controls",
-        snippet: "(setq dlg (oca-dialog \"Parameters\"
+        snippet: "(setq dlg (oc-dialog \"Parameters\"
   '((width . 400.0))
-  (oca-row (oca-number \"rad\" \"Radius\" 25.0 '((min . 1.0) (max . 100.0))))
-  (oca-row (oca-checkbox \"draw_x\" \"Draw X\" nil))
+  (oc-row (oc-number \"rad\" \"Radius\" 25.0 '((min . 1.0) (max . 100.0))))
+  (oc-row (oc-checkbox \"draw_x\" \"Draw X\" nil))
 ))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-dialog-show",
-        signature: "(oca-dialog-show dialog-def [action_callback]) -> alist | nil",
+        name: "oc-dialog-show",
+        signature: "(oc-dialog-show dialog-def [action_callback]) -> alist | nil",
         description: "Displays a dialog modally and returns an alist of (id . value) pairs if submitted, or nil on Cancel. Parameters:
-- dialog-def: Dialog object from oca-dialog
+- dialog-def: Dialog object from oc-dialog
 - [action_callback] (optional symbol or lambda): (callback control-id action current-values) for two-way reactive interactivity without closing",
-        snippet: "(setq res (oca-dialog-show dlg))
+        snippet: "(setq res (oc-dialog-show dlg))
 (if res
-  (princ (oca-get-real \"rad\" res))
+  (princ (oc-get-real \"rad\" res))
 )
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-get",
-        signature: "(oca-get key-str alist) -> value",
-        description: "Retrieves raw control value by key from the result alist returned by oca-dialog-show. Parameters:
+        name: "oc-get",
+        signature: "(oc-get key-str alist) -> value",
+        description: "Retrieves raw control value by key from the result alist returned by oc-dialog-show. Parameters:
 - key-str (string | symbol): Control ID key
-- alist: Association list returned by oca-dialog-show",
-        snippet: "(setq v (oca-get \"rad\" res))
+- alist: Association list returned by oc-dialog-show",
+        snippet: "(setq v (oc-get \"rad\" res))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-get-real",
-        signature: "(oca-get-real key-str alist) -> real",
+        name: "oc-get-real",
+        signature: "(oc-get-real key-str alist) -> real",
         description: "Retrieves a numeric floating-point value by key from dialog results. Parameters:
 - key-str (string | symbol): Control ID key
-- alist: Association list returned by oca-dialog-show",
-        snippet: "(setq r (oca-get-real \"rad\" res))
+- alist: Association list returned by oc-dialog-show",
+        snippet: "(setq r (oc-get-real \"rad\" res))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-get-str",
-        signature: "(oca-get-str key-str alist) -> string",
+        name: "oc-get-str",
+        signature: "(oc-get-str key-str alist) -> string",
         description: "Retrieves a text string value by key from dialog results. Parameters:
 - key-str (string | symbol): Control ID key
-- alist: Association list returned by oca-dialog-show",
-        snippet: "(setq s (oca-get-str \"label\" res))
+- alist: Association list returned by oc-dialog-show",
+        snippet: "(setq s (oc-get-str \"label\" res))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-get-bool",
-        signature: "(oca-get-bool key-str alist) -> boolean",
+        name: "oc-get-bool",
+        signature: "(oc-get-bool key-str alist) -> boolean",
         description: "Retrieves a boolean flag (T or nil) by key from dialog results. Parameters:
 - key-str (string | symbol): Control ID key
-- alist: Association list returned by oca-dialog-show",
-        snippet: "(setq b (oca-get-bool \"draw_x\" res))
+- alist: Association list returned by oc-dialog-show",
+        snippet: "(setq b (oc-get-bool \"draw_x\" res))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-get-int",
-        signature: "(oca-get-int key-str alist) -> integer",
+        name: "oc-get-int",
+        signature: "(oc-get-int key-str alist) -> integer",
         description: "Retrieves an integer value by key from dialog results. Parameters:
 - key-str (string | symbol): Control ID key
-- alist: Association list returned by oca-dialog-show",
-        snippet: "(setq n (oca-get-int \"count\" res))
+- alist: Association list returned by oc-dialog-show",
+        snippet: "(setq n (oc-get-int \"count\" res))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-panel-register",
-        signature: "(oca-panel-register panel-id title [options] ctrl1 [ctrl2 ...]) -> boolean",
+        name: "oc-panel-register",
+        signature: "(oc-panel-register panel-id title [options] ctrl1 [ctrl2 ...]) -> boolean",
         description: "Registers a persistent dockable side panel in OpenCAD Studio. Parameters:
 - panel-id (string | symbol): Unique panel ID
 - title (string | symbol): Header title on panel tab
 - [options] (optional alist): '((width . 260.0) (command . \"MYCMD\") (style . \"palette\")) — style defaults to \"dialog\" / \"form\" (dialog-like form style); pass \"palette\" for the compact Properties-grid style
 - ctrl1 [ctrl2 ...] (controls): Controls placed vertically in panel",
-        snippet: "(oca-panel-register \"my_panel\" \"Tools\"
+        snippet: "(oc-panel-register \"my_panel\" \"Tools\"
   '((width . 260.0))
-  (oca-choice \"col\" \"Color\" '(\"Red\" \"Blue\") \"Red\")
-  (oca-button \"btn\" \"Execute\" \"(c:run)\")
+  (oc-choice \"col\" \"Color\" '(\"Red\" \"Blue\") \"Red\")
+  (oc-button \"btn\" \"Execute\" \"(c:run)\")
 )
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-panel-toggle",
-        signature: "(oca-panel-toggle panel-id [show-bool]) -> boolean",
+        name: "oc-panel-toggle",
+        signature: "(oc-panel-toggle panel-id [show-bool]) -> boolean",
         description: "Toggles or sets visibility of a registered dockable side panel. Parameters:
 - panel-id (string | symbol): Identifier of registered panel
 - [show-bool] (optional boolean): T to show, nil to hide; toggles if omitted",
-        snippet: "(oca-panel-toggle \"my_panel\" T)
+        snippet: "(oc-panel-toggle \"my_panel\" T)
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-panel-update",
-        signature: "(oca-panel-update panel-id values-alist) -> boolean",
+        name: "oc-panel-update",
+        signature: "(oc-panel-update panel-id values-alist) -> boolean",
         description: "Updates control values in a live dockable side panel without re-registering. Parameters:
 - panel-id (string | symbol): Identifier of registered panel
 - values-alist: Alist of ((\"control_id\" . new-value) ...)",
-        snippet: "(oca-panel-update \"my_panel\" (list (cons \"col\" \"Blue\")))
+        snippet: "(oc-panel-update \"my_panel\" (list (cons \"col\" \"Blue\")))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-panel-get",
-        signature: "(oca-panel-get panel-id control-id) -> value",
+        name: "oc-panel-get",
+        signature: "(oc-panel-get panel-id control-id) -> value",
         description: "Reads the current live value of a control inside a dockable side panel. Parameters:
 - panel-id (string | symbol): Side panel ID
 - control-id (string | symbol): Control ID inside panel",
-        snippet: "(setq val (oca-panel-get \"my_panel\" \"col\"))
+        snippet: "(setq val (oc-panel-get \"my_panel\" \"col\"))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-panel-get-num",
-        signature: "(oca-panel-get-num panel-id control-id) -> real",
+        name: "oc-panel-get-num",
+        signature: "(oc-panel-get-num panel-id control-id) -> real",
         description: "Reads the current numeric value of a control inside a dockable side panel. Parameters:
 - panel-id (string | symbol): Side panel ID
 - control-id (string | symbol): Numeric control ID inside panel",
-        snippet: "(setq n (oca-panel-get-num \"my_panel\" \"radius\"))
+        snippet: "(setq n (oc-panel-get-num \"my_panel\" \"radius\"))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-panel-get-real",
-        signature: "(oca-panel-get-real panel-id control-id) -> real",
-        description: "Reads the current real numeric value of a control inside a dockable side panel (alias of oca-panel-get-num). Parameters:
+        name: "oc-panel-get-real",
+        signature: "(oc-panel-get-real panel-id control-id) -> real",
+        description: "Reads the current real numeric value of a control inside a dockable side panel (alias of oc-panel-get-num). Parameters:
 - panel-id (string | symbol): Side panel ID
 - control-id (string | symbol): Numeric control ID inside panel",
-        snippet: "(setq r (oca-panel-get-real \"my_panel\" \"radius\"))
+        snippet: "(setq r (oc-panel-get-real \"my_panel\" \"radius\"))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-panel-get-str",
-        signature: "(oca-panel-get-str panel-id control-id) -> string",
+        name: "oc-panel-get-str",
+        signature: "(oc-panel-get-str panel-id control-id) -> string",
         description: "Reads the current string or selected choice text of a control inside a dockable side panel. Parameters:
 - panel-id (string | symbol): Side panel ID
 - control-id (string | symbol): Control ID inside panel",
-        snippet: "(setq s (oca-panel-get-str \"my_panel\" \"color\"))
+        snippet: "(setq s (oc-panel-get-str \"my_panel\" \"color\"))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-panel-get-bool",
-        signature: "(oca-panel-get-bool panel-id control-id) -> boolean",
+        name: "oc-panel-get-bool",
+        signature: "(oc-panel-get-bool panel-id control-id) -> boolean",
         description: "Reads the current boolean checkbox state (T or nil) of a control inside a dockable side panel. Parameters:
 - panel-id (string | symbol): Side panel ID
 - control-id (string | symbol): Checkbox control ID inside panel",
-        snippet: "(if (oca-panel-get-bool \"my_panel\" \"chk_close\") (princ \"Closed\"))
+        snippet: "(if (oc-panel-get-bool \"my_panel\" \"chk_close\") (princ \"Closed\"))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-row",
-        signature: "(oca-row [options] ctrl1 [ctrl2 ...]) -> row-def",
+        name: "oc-row",
+        signature: "(oc-row [options] ctrl1 [ctrl2 ...]) -> row-def",
         description: "Groups multiple controls horizontally in a single row within a dialog. Parameters:
 - [options] (optional alist): '((align-h . \"left\"|\"center\"|\"right\") (align-v . \"top\"|\"middle\"|\"bottom\"))
 - ctrl1 [ctrl2 ...] (controls): Child controls in row",
-        snippet: "(oca-row '((align-h . \"center\") (align-v . \"middle\"))
-  (oca-number \"w\" \"Width\" 10.0)
-  (oca-number \"h\" \"Height\" 20.0)
+        snippet: "(oc-row '((align-h . \"center\") (align-v . \"middle\"))
+  (oc-number \"w\" \"Width\" 10.0)
+  (oc-number \"h\" \"Height\" 20.0)
 )
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-column",
-        signature: "(oca-column [options] ctrl1 [ctrl2 ...]) -> control-def",
+        name: "oc-column",
+        signature: "(oc-column [options] ctrl1 [ctrl2 ...]) -> control-def",
         description: "Groups multiple controls vertically in a single column container. Parameters:
 - [options] (optional alist): '((align-h . \"left\"|\"center\"|\"right\") (align-v . \"top\"|\"middle\"|\"bottom\"))
 - ctrl1 [ctrl2 ...] (controls): Stacked child controls",
-        snippet: "(oca-column '((align-h . \"center\") (align-v . \"top\"))
-  (oca-text \"txt1\" \"Label\" \"Val\")
-  (oca-button \"btn1\" \"Submit\")
+        snippet: "(oc-column '((align-h . \"center\") (align-v . \"top\"))
+  (oc-text \"txt1\" \"Label\" \"Val\")
+  (oc-button \"btn1\" \"Submit\")
 )
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-text",
-        signature: "(oca-text id-str label-str [default-str]) -> control-def",
+        name: "oc-text",
+        signature: "(oc-text id-str label-str [default-str]) -> control-def",
         description: "UI Control: Creates a single-line text input field. Parameters:
 - id-str (string | symbol): Control ID
 - label-str (string | symbol): Field label
 - [default-str] (optional string, default \"\"): Initial text value",
-        snippet: "(oca-text \"txt_name\" \"Name\" \"Part-1\")
+        snippet: "(oc-text \"txt_name\" \"Name\" \"Part-1\")
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-number",
-        signature: "(oca-number id-str label-str [default-num] [options]) -> control-def",
+        name: "oc-number",
+        signature: "(oc-number id-str label-str [default-num] [options]) -> control-def",
         description: "UI Control: Creates a numeric input field with spinner constraints. Parameters:
 - id-str (string | symbol): Control ID
 - label-str (string | symbol): Field label
 - [default-num] (optional number or alist, default 0.0): Initial value or options alist
 - [options] (optional alist): '((min . 0.0) (max . 100.0) (step . 1.0) (default . 0.0))",
-        snippet: "(oca-number \"rad\" \"Radius\" 25.0 '((min . 1.0) (max . 100.0) (step . 0.5)))
+        snippet: "(oc-number \"rad\" \"Radius\" 25.0 '((min . 1.0) (max . 100.0) (step . 0.5)))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-checkbox",
-        signature: "(oca-checkbox id-str label-str [default-bool] [options]) -> control-def",
+        name: "oc-checkbox",
+        signature: "(oc-checkbox id-str label-str [default-bool] [options]) -> control-def",
         description: "UI Control: Creates a boolean checkbox toggle. Parameters:
 - id-str (string | symbol): Control ID
 - label-str (string | symbol): Field label
 - [default-bool] (optional boolean, default nil): Initial state (T or nil)
 - [options] (optional alist): '((align-h . \"left\"|\"center\"|\"right\") (align-v . \"top\"|\"middle\"|\"bottom\"))",
-        snippet: "(oca-checkbox \"chk_close\" \"Close Shape\" T)
+        snippet: "(oc-checkbox \"chk_close\" \"Close Shape\" T)
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-choice",
-        signature: "(oca-choice id-str label-str options-list [default-choice]) -> control-def",
+        name: "oc-choice",
+        signature: "(oc-choice id-str label-str options-list [default-choice]) -> control-def",
         description: "UI Control: Creates a dropdown selector menu. Parameters:
 - id-str (string | symbol): Control ID
 - label-str (string | symbol): Field label
 - options-list (list of strings): Dropdown items list
 - [default-choice] (optional int, string, or alist, default 0): 0-based index, string match, or '((default . 0))",
-        snippet: "(oca-choice \"cmb_layer\" \"Layer\" '(\"0\" \"WALLS\" \"DIMS\") \"0\")
+        snippet: "(oc-choice \"cmb_layer\" \"Layer\" '(\"0\" \"WALLS\" \"DIMS\") \"0\")
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-color",
-        signature: "(oca-color id-str label-str [default-rgb]) -> control-def",
+        name: "oc-color",
+        signature: "(oc-color id-str label-str [default-rgb]) -> control-def",
         description: "UI Control: Creates an RGB color picker. Parameters:
 - id-str (string | symbol): Control ID
 - label-str (string | symbol): Field label
 - [default-rgb] (optional list of 3 ints, default '(0 0 0)): RGB values (0..255)",
-        snippet: "(oca-color \"clr\" \"Color\" '(255 0 0))
+        snippet: "(oc-color \"clr\" \"Color\" '(255 0 0))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-file",
-        signature: "(oca-file id-str label-str [default-path] [options]) -> control-def",
+        name: "oc-file",
+        signature: "(oc-file id-str label-str [default-path] [options]) -> control-def",
         description: "UI Control: Creates a native file open/save browser control. Parameters:
 - id-str (string | symbol): Control ID
 - label-str (string | symbol): Field label
 - [default-path] (optional string, default \"\"): Initial path
 - [options] (optional alist): '((filter . \"DXF Files (*.dxf)\") (extensions . (\"dxf\")) (save . T|nil))",
-        snippet: "(oca-file \"out_file\" \"DXF File\" \"output.dxf\" '((filter . \"DXF Files (*.dxf)\") (extensions . (\"dxf\")) (save . T)))
+        snippet: "(oc-file \"out_file\" \"DXF File\" \"output.dxf\" '((filter . \"DXF Files (*.dxf)\") (extensions . (\"dxf\")) (save . T)))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-table",
-        signature: "(oca-table id-str label-str headers-list [rows-list] [options]) -> control-def",
+        name: "oc-table",
+        signature: "(oc-table id-str label-str headers-list [rows-list] [options]) -> control-def",
         description: "UI Control: Creates an interactive data table grid with row add/remove buttons. Parameters:
 - id-str (string | symbol): Control ID
 - label-str (string | symbol): Table title
 - headers-list (list of strings): Column header titles
 - [rows-list] (optional list of row lists): Initial 2D table data
 - [options] (optional alist): '((allow_add . T|nil) (allow_delete . T|nil))",
-        snippet: "(oca-table \"tbl_pts\" \"Coordinates\" '(\"X\" \"Y\" \"Z\") '((\"0.0\" \"0.0\" \"0.0\")) '((allow_add . T) (allow_delete . T)))
+        snippet: "(oc-table \"tbl_pts\" \"Coordinates\" '(\"X\" \"Y\" \"Z\") '((\"0.0\" \"0.0\" \"0.0\")) '((allow_add . T) (allow_delete . T)))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-fields",
-        signature: "(oca-fields [id-str] title-str [options] ctrl1 [ctrl2 ...]) -> control-def",
+        name: "oc-fields",
+        signature: "(oc-fields [id-str] title-str [options] ctrl1 [ctrl2 ...]) -> control-def",
         description: "UI Control: Creates a collapsible property group box. Parameters:
 - [id-str] (optional string | symbol): Section ID
 - title-str (string | symbol): Header title on group box
 - [options] (optional alist): '((collapsed . T|nil))
 - ctrl1 [ctrl2 ...] (controls): Nested controls",
-        snippet: "(oca-fields \"Geometry\"
+        snippet: "(oc-fields \"Geometry\"
   '((collapsed . nil))
-  (oca-number \"len\" \"Length\" 50.0)
-  (oca-number \"wid\" \"Width\" 30.0)
+  (oc-number \"len\" \"Length\" 50.0)
+  (oc-number \"wid\" \"Width\" 30.0)
 )
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-button",
-        signature: "(oca-button id-str label-str [action] [options]) -> control-def",
+        name: "oc-button",
+        signature: "(oc-button id-str label-str [action] [options]) -> control-def",
         description: "UI Control: Creates a clickable button. Parameters:
 - id-str (string | symbol): Control ID
 - label-str (string | symbol): Button text
 - [action] (optional string or alist, default \"click\"): Command string in panels; action ID in dialogs
 - [options] (optional alist): '((action . \"...\") (align-h . \"left\"|\"center\"|\"right\") (width . 140.0))",
-        snippet: "(oca-button \"btn_draw\" \"Draw Shape\" \"(c:draw-shape)\" '((align-h . \"center\") (width . 140.0)))
+        snippet: "(oc-button \"btn_draw\" \"Draw Shape\" \"(c:draw-shape)\" '((align-h . \"center\") (width . 140.0)))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
     ApiDoc {
-        name: "oca-info",
-        signature: "(oca-info [id-str] text-str [options]) -> control-def",
+        name: "oc-info",
+        signature: "(oc-info [id-str] text-str [options]) -> control-def",
         description: "UI Control: Displays read-only instructional or descriptive text. Parameters:
 - [id-str] (optional string | symbol): Optional control ID for live updates
 - text-str (string | symbol): Label text
 - [options] (optional alist): '((align-h . \"left\"|\"center\"|\"right\"))",
-        snippet: "(oca-info \"Specify dimensions in millimeters below:\" '((align-h . \"center\")))
+        snippet: "(oc-info \"Specify dimensions in millimeters below:\" '((align-h . \"center\")))
 ",
         category: "UI & Panels",
         dxf_summary: None,
@@ -1816,32 +1816,20 @@ pub const API_DOCS: &[ApiDoc] = &[
         dxf_summary: None,
     },
     ApiDoc {
-        name: "dos_msgbox",
-        signature: "(dos_msgbox prompt-str [title-str] [buttons-spec]) -> button-id",
-        description: "Displays a native message box dialog (alias of msgbox). Parameters:
-- prompt-str (string | any): Dialog message text
-- [title-str] (optional string): Title bar text
-- [buttons-spec] (optional int, symbol, or alist): Button style specifier",
-        snippet: "(dos_msgbox \"Operation complete\" \"Info\" \"OK\")
-",
-        category: "UI & Panels",
-        dxf_summary: None,
-    },
-    ApiDoc {
-        name: "oca-msgbox",
-        signature: "(oca-msgbox prompt-str [title-str] [buttons-spec]) -> button-id",
+        name: "oc-msgbox",
+        signature: "(oc-msgbox prompt-str [title-str] [buttons-spec]) -> button-id",
         description: "Displays a native message box dialog. Parameters:
 - prompt-str (string | any): Dialog message text
 - [title-str] (optional string, default \"OpenCAD Studio\"): Title bar text
 - [buttons-spec] (optional int, symbol, or alist): \"OK\", \"OKCANCEL\", \"YESNO\", \"RETRYCANCEL\", \"ABORTRETRYIGNORE\", \"YESNOCANCEL\", or alist '((buttons . yesno) (title . \"...\") (icon . warning)). Returns: 1=OK, 2=Cancel, 3=Abort, 4=Retry, 5=Ignore, 6=Yes, 7=No",
-        snippet: "(if (= 6 (oca-msgbox \"Proceed?\" \"Notice\" \"YESNO\")) (princ \"Confirmed\"))
+        snippet: "(if (= 6 (oc-msgbox \"Proceed?\" \"Notice\" \"YESNO\")) (princ \"Confirmed\"))
 ",
         category: "UI & Panels",
         dxf_summary: None,
     },
 ];
 
-/// Tests whether a character is valid in an AutoLISP symbol identifier.
+/// Tests whether a character is valid in an OpenCAD LISP symbol identifier.
 pub fn is_lisp_ident_char(c: char) -> bool {
     c.is_alphanumeric()
         || c == '-'
@@ -1862,7 +1850,7 @@ mod tests {
 
     #[test]
     fn test_api_docs_completeness_and_categories() {
-        assert!(API_DOCS.len() >= 90, "Expected at least 90 AutoLISP functions documented, got {}", API_DOCS.len());
+        assert!(API_DOCS.len() >= 90, "Expected at least 90 OpenCAD LISP functions documented, got {}", API_DOCS.len());
 
         let categories: std::collections::HashSet<&str> = API_DOCS.iter().map(|d| d.category).collect();
         assert!(categories.contains("CAD Database"));
@@ -1875,8 +1863,8 @@ mod tests {
         assert!(categories.contains("List Manipulation"));
         assert!(categories.contains("Strings"));
         assert!(categories.contains("Console & Files"));
-        assert!(categories.contains("Visual LISP"));
-        assert!(categories.contains("ActiveX"));
+        assert!(categories.contains("LISP Extensions"));
+        assert!(categories.contains("Object Model"));
         assert!(categories.contains("UI & Panels"));
     }
 

@@ -1,5 +1,5 @@
 =============================================================
- OpenCAD AutoLISP & IDE Plugin - Manual Installation Guide
+ OpenCAD LISP & IDE Plugin - Manual Installation Guide
 =============================================================
 
 To manually install this plugin for OpenCAD Studio:
@@ -7,19 +7,19 @@ To manually install this plugin for OpenCAD Studio:
 1. Locate or create the plugin directory for your operating system:
 
    - Windows:
-     %APPDATA%\OpenCADStudio\plugins\opencad.autolisp_and_ide\
-     (Full path: C:\Users\<Username>\AppData\Roaming\OpenCADStudio\plugins\opencad.autolisp_and_ide\)
+     %APPDATA%\OpenCADStudio\plugins\opencad.lisp_and_ide\
+     (Full path: C:\Users\<Username>\AppData\Roaming\OpenCADStudio\plugins\opencad.lisp_and_ide\)
 
    - macOS:
-     ~/Library/Application Support/OpenCADStudio/plugins/opencad.autolisp_and_ide/
+     ~/Library/Application Support/OpenCADStudio/plugins/opencad.lisp_and_ide/
 
    - Linux:
-     ~/.config/OpenCADStudio/plugins/opencad.autolisp_and_ide/
+     ~/.config/OpenCADStudio/plugins/opencad.lisp_and_ide/
 
 2. Copy the contents of this archive into that folder:
    - plugin.toml
-   - opencad.autolisp_and_ide.dll (or .so on Linux / .dylib on macOS)
-   - opencad_autolisp_ide.exe (or binary on Linux / macOS)
+   - opencad.lisp_and_ide.dll (or .so on Linux / .dylib on macOS)
+   - opencad_lisp_ide.exe (or binary on Linux / macOS)
    - INSTALL.txt
 
 3. Start or restart OpenCAD Studio.
@@ -35,6 +35,6 @@ your version of OpenCAD Studio may require an updated release of
 this plugin. 
 
 Please check the repository Releases page:
-https://github.com/yztink/opencad-autolisp-and-ide/releases
+https://github.com/yztink/opencad-lisp-and-ide/releases
 to download the matching version for your OpenCAD Studio build.
 =============================================================

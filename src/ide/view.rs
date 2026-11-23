@@ -1,5 +1,5 @@
-//! OpenCAD AutoLISP IDE (OCSIDE) — an integrated development environment
-//! for writing, testing, and debugging AutoLISP scripts directly in OpenCAD Studio.
+//! OpenCAD LISP IDE (OCIDE) — an integrated development environment
+//! for writing, testing, and debugging OpenCAD LISP scripts directly in OpenCAD Studio.
 //! Supports both a top-level native OS window (with Alt-Tab multitasking) and an in-canvas modal.
 
 use crate::ide::highlight::{available_monospace_fonts, DEFAULT_FONT_NAME};
@@ -10,11 +10,11 @@ use iced::widget::{
 use iced::{keyboard, Background, Border, Element, Fill, Length, Point, Theme};
 
 /// Widget ID for the unified IDE editor and gutter scrollable.
-pub const EDITOR_SCROLL_ID: &str = "ocside_editor_scroll";
-pub const GUTTER_SCROLL_ID: &str = "ocside_editor_scroll";
-pub const EDITOR_ID: &str = "ocside_main_editor";
-pub const REPL_EDITOR_ID: &str = "ocside_repl_editor";
-pub const CONSOLE_EDITOR_ID: &str = "ocside_console_editor";
+pub const EDITOR_SCROLL_ID: &str = "ocide_editor_scroll";
+pub const GUTTER_SCROLL_ID: &str = "ocide_editor_scroll";
+pub const EDITOR_ID: &str = "ocide_main_editor";
+pub const REPL_EDITOR_ID: &str = "ocide_repl_editor";
+pub const CONSOLE_EDITOR_ID: &str = "ocide_console_editor";
 pub const FIND_INPUT_ID: &str = "find_query_input";
 pub const REPLACE_INPUT_ID: &str = "replace_query_input";
 
@@ -32,7 +32,7 @@ fn primary_style(theme: &Theme) -> iced::widget::text::Style {
     }
 }
 
-/// Dark charcoal gray color (#2A2A2A) used throughout OCSIDE for containers, borders, and controls.
+/// Dark charcoal gray color (#2A2A2A) used throughout OCIDE for containers, borders, and controls.
 pub const IDE_DARK_GRAY: iced::Color = iced::Color::from_rgb(
     42.0 / 255.0, // 0x2A
     42.0 / 255.0, // 0x2A
@@ -130,7 +130,7 @@ pub fn active_function_call_in_line(
     }
 
     if let Some(idx) = open_paren_idx {
-        // In AutoLISP prefix syntax: (func-name arg1 arg2 ...)
+        // In OpenCAD LISP prefix syntax: (func-name arg1 arg2 ...)
         // The function name is the first token immediately following '(' (skipping whitespace/quote)
         let mut start = idx + 1;
         while start < chars.len() && (chars[start].is_whitespace() || chars[start] == '\'') {
@@ -684,7 +684,7 @@ fn render_find_replace_overlay<'a>(
     .into()
 }
 
-/// Render the standalone full-screen OS window for OCSIDE.
+/// Render the standalone full-screen OS window for OCIDE.
 pub fn view_standalone_window<'a>(
     tabs: &'a [IdeTab],
     active_tab: usize,
@@ -861,7 +861,7 @@ fn render_settings_dialog<'a>(
         .padding([6, 12])
         .style(if settings_tab == SettingsTab::EditorSyntax { button::primary } else { ide_secondary_button });
 
-    let tab_format_btn = button(text("📐 AutoLISP Formatting").size(12))
+    let tab_format_btn = button(text("📐 OpenCAD LISP Formatting").size(12))
         .on_press(IdeMessage::SetSettingsTab(SettingsTab::Formatting))
         .padding([6, 12])
         .style(if settings_tab == SettingsTab::Formatting { button::primary } else { ide_secondary_button });
@@ -1075,7 +1075,7 @@ fn render_settings_dialog<'a>(
             // 2. Presets Dropdown & Save Section
             let mut theme_options: Vec<String> = vec![
                 "Base16 Mocha (Default)".to_string(),
-                "VLIDE Classic".to_string(),
+                "Classic Light".to_string(),
                 "Monokai".to_string(),
                 "Solarized Dark".to_string(),
             ];
@@ -1246,12 +1246,12 @@ fn render_settings_dialog<'a>(
                 ("Gold / Yellow (#F1FA8C)", iced::Color::from_rgb8(0xF1, 0xFA, 0x8C)),
                 ("Emerald Green (#50FA7B)", iced::Color::from_rgb8(0x50, 0xFA, 0x7B)),
                 ("Cyan / Teal (#8BE9FD)", iced::Color::from_rgb8(0x8B, 0xE9, 0xFD)),
-                ("VLIDE Blue (#0000FF)", iced::Color::from_rgb8(0x00, 0x00, 0xFF)),
+                ("Classic Blue (#0000FF)", iced::Color::from_rgb8(0x00, 0x00, 0xFF)),
                 ("Navy (#000080)", iced::Color::from_rgb8(0x00, 0x00, 0x80)),
                 ("Sky Blue (#82AAFF)", iced::Color::from_rgb8(0x82, 0xAA, 0xFF)),
                 ("Purple / Lavender (#BD93F9)", iced::Color::from_rgb8(0xBD, 0x93, 0xF9)),
                 ("Magenta (#FF79C6)", iced::Color::from_rgb8(0xFF, 0x79, 0xC6)),
-                ("VLIDE Purple (#800080)", iced::Color::from_rgb8(0x80, 0x00, 0x80)),
+                ("Classic Purple (#800080)", iced::Color::from_rgb8(0x80, 0x00, 0x80)),
                 ("Sienna Brown (#A0522D)", iced::Color::from_rgb8(0xA0, 0x52, 0x2D)),
             ];
 
@@ -1476,7 +1476,7 @@ fn render_settings_dialog<'a>(
             ]
             .spacing(6);
 
-            // 6. Live Mini AutoLISP Preview
+            // 6. Live Mini OpenCAD LISP Preview
             let preview_font = settings.editor_font();
             let preview_bg = c.background;
             let preview_comment = c.comment;
@@ -1497,7 +1497,7 @@ fn render_settings_dialog<'a>(
 
             let preview_box = container(
                 column![
-                    row![ptoken(";; OpenCAD AutoLISP Syntax Preview", preview_comment)],
+                    row![ptoken(";; OpenCAD LISP Syntax Preview", preview_comment)],
                     row![
                         ptoken("(", preview_paren),
                         ptoken("defun", preview_kw),
@@ -1579,7 +1579,7 @@ fn render_settings_dialog<'a>(
             for size in indent_sizes {
                 let is_sel = opts.indent_size == size;
                 let lbl = if size == 2 {
-                    "2 spaces (VLIDE default)"
+                    "2 spaces (default)"
                 } else if size == 3 {
                     "3 spaces"
                 } else {
@@ -1660,7 +1660,7 @@ fn render_settings_dialog<'a>(
             let reflow_btn = button(
                 row![
                     text(if opts.structural_reflow { "☑" } else { "☐" }).size(14),
-                    text("Structural Re-flow: Move expressions between lines (breaks & joins matching VLIDE)").size(12),
+                    text("Structural Re-flow: Move expressions between lines (classic LISP breaks & joins)").size(12),
                 ]
                 .spacing(6)
                 .align_y(iced::Center),
@@ -1690,7 +1690,7 @@ fn render_settings_dialog<'a>(
                 text("Keyboard & Context Shortcuts:").size(12),
                 row![
                     text("• Format Entire Document:").size(11).style(muted_style),
-                    text(" Shift+Alt+F  or  Ctrl+Alt+F (VLIDE default)").size(11),
+                    text(" Shift+Alt+F  or  Ctrl+Alt+F (default)").size(11),
                 ]
                 .spacing(4),
                 row![
@@ -1712,8 +1712,8 @@ fn render_settings_dialog<'a>(
             .spacing(4);
 
             column![
-                text("AutoLISP / VLIDE Formatting Guidelines").size(13),
-                text("Configure automatic indentation, symbol casing, and alignment rules matching Visual LISP (VLIDE) and standard CAD specifications.").size(11).style(muted_style),
+                text("OpenCAD LISP Formatting Guidelines").size(13),
+                text("Configure automatic indentation, symbol casing, and alignment rules matching classic LISP and standard CAD specifications.").size(11).style(muted_style),
                 Space::new().height(Length::Fixed(4.0)),
                 dialog_sep(),
                 indent_row,
@@ -2032,7 +2032,7 @@ fn render_ide_layout<'a>(
             })
             .padding([6, 12])
             .style(ide_secondary_button),
-        "Format AutoLISP Document (Shift+Alt+F) | Selection (Ctrl+Shift+F)",
+        "Format OpenCAD LISP Document (Shift+Alt+F) | Selection (Ctrl+Shift+F)",
     );
 
     let btn_find = ide_tooltip(
@@ -2089,7 +2089,7 @@ fn render_ide_layout<'a>(
         } else {
             ide_secondary_button
         }),
-        "Toggle AutoLISP Function List & Reference (F2)",
+        "Toggle OpenCAD LISP Function List & Reference (F2)",
     );
 
     let btn_clear = ide_tooltip(
@@ -2280,7 +2280,7 @@ fn render_ide_layout<'a>(
                 "No breakpoints".to_string()
             };
             format!(
-                "Ln {}, Col {}  |  {} lines  |  {}  |  AutoLISP  |  F5: Run, F9: Breakpoint, Shift+Alt+F: Format",
+                "Ln {}, Col {}  |  {} lines  |  {}  |  OpenCAD LISP  |  F5: Run, F9: Breakpoint, Shift+Alt+F: Format",
                 cursor.position.line + 1,
                 cursor.position.column + 1,
                 total_lines,
@@ -3128,7 +3128,7 @@ fn render_ide_layout<'a>(
 
     let is_repl_lisp = repl_mode == crate::ide::protocol::ReplMode::Lisp;
     let (prompt_str, placeholder_str, _syntax_hl) = if is_repl_lisp {
-        ("LISP>", "AutoLISP code / expression (e.g. (+ 1 2) or (getpoint) - Enter to run, Ctrl+Enter for newline)...", "lisp")
+        ("LISP>", "OpenCAD LISP code / expression (e.g. (+ 1 2) or (getpoint) - Enter to run, Ctrl+Enter for newline)...", "lisp")
     } else {
         (">>>", "Python code / expression (Enter to run, Ctrl+Enter for newline)...", "py")
     };
@@ -3249,7 +3249,7 @@ fn render_ide_layout<'a>(
         .padding([2, 6])
         .style(button::primary),
         if is_repl_lisp {
-            "Run AutoLISP Code (Enter to run, Ctrl+Enter for newline)"
+            "Run OpenCAD LISP Code (Enter to run, Ctrl+Enter for newline)"
         } else {
             "Run Python Code (Enter to run, Ctrl+Enter for newline)"
         },
@@ -3274,7 +3274,7 @@ fn render_ide_layout<'a>(
         row![
             text("Console / Output").size(11).style(primary_style),
             Space::new().width(Fill),
-            text("Interactive AutoLISP REPL (Enter to run, Ctrl+Enter for newline)").size(10).style(muted_style),
+            text("Interactive OpenCAD LISP REPL (Enter to run, Ctrl+Enter for newline)").size(10).style(muted_style),
         ]
         .spacing(6)
         .align_y(iced::Center),
@@ -3672,7 +3672,7 @@ fn render_ide_layout<'a>(
             .into()
         };
 
-        let search_box = text_input("Search AutoLISP & DXF API...", api_search)
+        let search_box = text_input("Search OpenCAD LISP & DXF API...", api_search)
             .on_input(IdeMessage::ApiSearch)
             .size(14)
             .padding([4, 6]);
@@ -3773,7 +3773,7 @@ fn render_ide_layout<'a>(
         let drawer_container = container(
             column![
                 row![
-                    text("λ AutoLISP Function List & Reference")
+                    text("λ OpenCAD LISP Function List & Reference")
                         .size(15)
                         .wrapping(iced::widget::text::Wrapping::None)
                         .style(primary_style),
@@ -4141,7 +4141,7 @@ mod tests {
         assert_eq!(identifier_at_cursor(code, 1, 0), Some("oc".to_string()));
         assert_eq!(identifier_at_cursor(code, 1, 4), Some("add_line".to_string()));
 
-        // AutoLISP identifiers with hyphens, colons, and leading numbers
+        // OpenCAD LISP identifiers with hyphens, colons, and leading numbers
         let lisp_code = "(defun c:draw-box (/ pt1 pt2)\n  (vl-string-search \"A\" str)\n  (1+ count))";
         assert_eq!(identifier_at_cursor(lisp_code, 0, 8), Some("c:draw-box".to_string()));
         assert_eq!(identifier_at_cursor(lisp_code, 1, 5), Some("vl-string-search".to_string()));
@@ -4241,7 +4241,7 @@ mod tests {
             780.0,
         );
 
-        // Case 3: Settings dialog open on AutoLISP Formatting tab
+        // Case 3: Settings dialog open on OpenCAD LISP Formatting tab
         let _elem3 = view_standalone_window(
             &tabs,
             0,
@@ -4329,7 +4329,7 @@ mod tests {
     #[test]
     fn test_ide_initial_template_and_command_snippet() {
         let tab = IdeTab::new_empty("untitled.lsp".to_string());
-        assert_eq!(tab.content.text(), ";; OpenCAD Studio AutoLISP script\n");
+        assert_eq!(tab.content.text(), ";; OpenCAD LISP script\n");
 
         let doc = API_DOCS.iter().find(|d| d.name == "entmake").expect("entmake doc");
         assert_eq!(doc.signature, "(entmake dxf-alist) -> dxf-alist | nil");
@@ -4358,7 +4358,7 @@ mod tests {
         assert!(doc2.is_some());
         assert_eq!(doc2.unwrap().name, "list");
 
-        // Case 3: Visual LISP function with hyphens
+        // Case 3: Extended LISP function with hyphens
         let text3 = "(vl-string-search \"CAD\" ";
         let doc3 = active_function_call_at_cursor(text3, 0, text3.len());
         assert!(doc3.is_some());
@@ -4690,7 +4690,7 @@ mod tests {
         let _ = app.update(IdeMessage::ToggleApiDrawer);
         assert!(app.api_drawer_open);
 
-        // 3. Set tab content with AutoLISP code
+        // 3. Set tab content with OpenCAD LISP code
         if let Some(tab) = app.tabs.get_mut(app.active_tab) {
             tab.content = text_editor::Content::with_text("(defun c:mycmd ()\n  (entmake (list '(0 . \"LINE\")))\n)");
         }

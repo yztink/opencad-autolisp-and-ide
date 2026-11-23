@@ -1,8 +1,8 @@
 //! ============================================================================
 //! DO NOT EDIT — PYTHON SUPPORT IS SHELVED / FROZEN.
-//! Do NOT modify this file or add features to Python to mirror AutoLISP.
-//! All active AutoLISP development belongs strictly in:
-//!   - ../opencad-autolisp-engine (crates/lisp-core, crates/lisp-cad)
+//! Do NOT modify this file or add features to Python to mirror OpenCAD LISP.
+//! All active OpenCAD LISP development belongs strictly in:
+//!   - ../opencad-lisp-engine (crates/lisp-core, crates/lisp-cad)
 //!   - src/rust_lisp.rs
 //! ============================================================================
 
@@ -239,7 +239,7 @@ pub fn _debug_check_line(
 
 /// Called by Python trace hook when an exception is raised in user script.
 /// Automatically pauses at the line causing the error, routes the error message
-/// to the OCSIDE console, and allows inspection of variables and stepping.
+/// to the OCIDE console, and allows inspection of variables and stepping.
 #[pyfunction]
 pub fn _debug_check_exception(
     filename: String,
@@ -269,7 +269,7 @@ pub fn _debug_check_exception(
     let err_header = format!("\n[Error at {}:{}] {}: {}\n", base_fname, lineno, exc_type, exc_msg);
     eprintln!("[plugin] [DEBUG] Exception at {}:{} - {}: {}", filename, lineno, exc_type, exc_msg);
 
-    // Route error message directly to OCSIDE console
+    // Route error message directly to OCIDE console
     crate::ide::server::broadcast_to_ide(&crate::ide::protocol::PluginToIde::ConsoleOutput {
         text: err_header.clone(),
         is_error: true,

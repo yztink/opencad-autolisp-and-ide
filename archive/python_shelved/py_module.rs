@@ -1,8 +1,8 @@
 // ============================================================================
 // DO NOT EDIT — PYTHON SUPPORT IS SHELVED / FROZEN.
-// Do NOT modify this file or add features to Python to mirror AutoLISP.
-// All active AutoLISP development belongs strictly in:
-//   - ../opencad-autolisp-engine (crates/lisp-core, crates/lisp-cad)
+// Do NOT modify this file or add features to Python to mirror OpenCAD LISP.
+// All active OpenCAD LISP development belongs strictly in:
+//   - ../opencad-lisp-engine (crates/lisp-core, crates/lisp-cad)
 //   - src/rust_lisp.rs
 // ============================================================================
 
@@ -1872,7 +1872,7 @@ fn cmd(cmd_str: &str) -> PyResult<bool> {
         || upper.starts_with("PYRUN:")
         || upper.starts_with("PY ")
         || upper == "PY"
-        || upper == "OCSIDE"
+        || upper == "OCIDE"
         || upper == "PYLIST"
     {
         if let Ok(handled) = with_host(|h| {
@@ -2526,16 +2526,16 @@ pub fn handle_panel_action(
 
 #[pyfunction]
 fn lisp_eval(py: Python<'_>, code: &str) -> PyResult<PyObject> {
-    let autolisp_mod = py.import("autolisp")?;
-    let eval_fn = autolisp_mod.getattr("eval_lisp")?;
+    let opencad_lisp_mod = py.import("opencad_lisp")?;
+    let eval_fn = opencad_lisp_mod.getattr("eval_lisp")?;
     let res = eval_fn.call1((code,))?;
     Ok(res.into())
 }
 
 #[pyfunction]
 fn lisp_load(py: Python<'_>, file_path: &str) -> PyResult<PyObject> {
-    let autolisp_mod = py.import("autolisp")?;
-    let load_fn = autolisp_mod.getattr("load_lisp_file")?;
+    let opencad_lisp_mod = py.import("opencad_lisp")?;
+    let load_fn = opencad_lisp_mod.getattr("load_lisp_file")?;
     let res = load_fn.call1((file_path,))?;
     Ok(res.into())
 }

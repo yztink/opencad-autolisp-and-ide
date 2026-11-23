@@ -1,5 +1,5 @@
-//! Pure Rust AutoLISP engine integration for OpenCAD Studio.
-//! Bypasses Python completely, executing AutoLISP via `lisp-core` and `lisp-cad`.
+//! Pure Rust OpenCAD LISP engine integration for OpenCAD Studio.
+//! Bypasses Python completely, executing OpenCAD LISP via `lisp-core` and `lisp-cad`.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -28,7 +28,7 @@ static GLOBAL_LISP_BRIDGE: OnceLock<Arc<Mutex<OpenCadRustBridge>>> = OnceLock::n
 static LISP_TASK_TX: OnceLock<std::sync::mpsc::Sender<LispTask>> = OnceLock::new();
 static LISP_OUTPUT_BUFFER: Mutex<String> = Mutex::new(String::new());
 
-/// Flush any buffered AutoLISP output to the active host session.
+/// Flush any buffered OpenCAD LISP output to the active host session.
 ///
 /// While an interactive command is active the text stays buffered: the host answers
 /// requests that arrive during an interactive step with a placeholder host that discards
@@ -206,7 +206,7 @@ pub fn format_cmdline_with_prefix(prefix: &str, cmdline_err: &str) -> String {
 
 /// Pushes only the concise function error to the OCS command line, and broadcasts
 /// the full multi-line diagnostic report (including the DEFUN definition and call stack)
-/// to the OCSIDE console if OCSIDE is open.
+/// to the OCIDE console if OCIDE is open.
 pub fn push_cad_error_and_notify_ide(host: &mut dyn HostApi, prefix: &str, full_err: &str) {
     if crate::ide::server::has_active_clients() {
         crate::ide::server::ide_log(&format!("\n[{prefix}] {full_err}\n"), true);
@@ -313,7 +313,7 @@ pub fn is_debug_session_active() -> bool {
 
 /// Send a lightweight read-only heartbeat request to the CAD host so any
 /// in-flight synchronous V4 RPC (`Dispatch` or `InteractiveEvent`) refreshes
-/// its call deadline while the user is inspecting state in the OCSIDE debugger.
+/// its call deadline while the user is inspecting state in the OCIDE debugger.
 pub fn send_host_keepalive() {
     if let Some(sender) = crate::context::get_global_sender() {
         let _ = sender.request(ocs_plugin_api::ipc::protocol::PluginRequest::GetTabId);
@@ -433,14 +433,14 @@ fn finish_interactive_or_eval(
                 let err = format_and_store_eval_error(e);
                 if crate::ide::server::has_active_clients() {
                     crate::ide::server::ide_log(
-                        &format!("\n[AutoLISP Error] {err}\n"),
+                        &format!("\n[OpenCAD LISP Error] {err}\n"),
                         true,
                     );
                 }
                 let cmdline = get_last_lisp_cmdline_error().unwrap_or_else(|| {
                     err.lines().next().unwrap_or(err.as_str()).to_string()
                 });
-                let err_msg = format_cmdline_with_prefix("AutoLISP Error", &cmdline);
+                let err_msg = format_cmdline_with_prefix("OpenCAD LISP Error", &cmdline);
                 if let Some(s) = crate::context::get_global_sender() {
                     let _ = s.request(ocs_plugin_api::ipc::protocol::PluginRequest::PushError(
                         err_msg.clone(),
@@ -495,7 +495,7 @@ fn get_task_tx() -> &'static std::sync::mpsc::Sender<LispTask> {
     LISP_TASK_TX.get_or_init(|| {
         let (tx, rx) = std::sync::mpsc::channel::<LispTask>();
         std::thread::Builder::new()
-            .name("autolisp-worker".into())
+            .name("opencad-lisp-worker".into())
             .stack_size(8 * 1024 * 1024)
             .spawn(move || {
                 let global_bridge = get_global_bridge();
@@ -680,7 +680,7 @@ fn get_task_tx() -> &'static std::sync::mpsc::Sender<LispTask> {
                     }
                 }
             })
-            .expect("spawn autolisp-worker thread");
+            .expect("spawn opencad-lisp-worker thread");
         tx
     })
 }
@@ -766,7 +766,7 @@ fn register_cad_reflection_builtins(env: &mut Env, bridge: Arc<Mutex<OpenCadRust
         });
     }
 
-    // CAD:LAST-ERROR -> returns the last formatted AutoLISP error string (or nil)
+    // CAD:LAST-ERROR -> returns the last formatted OpenCAD LISP error string (or nil)
     env.def_subr("CAD:LAST-ERROR", |_, _| {
         Ok(get_last_lisp_error()
             .map(Value::Str)
@@ -856,7 +856,7 @@ pub enum StreamState {
     },
 }
 
-/// OpenCAD Studio native bridge for AutoLISP
+/// OpenCAD Studio native bridge for OpenCAD LISP
 pub struct OpenCadRustBridge {
     pub executed_commands: Vec<String>,
     pub stream_state: Option<StreamState>,
@@ -1845,7 +1845,7 @@ impl OpenCadRustBridge {
     }
 
     /// Process command tokens through the streaming CAD state machine.
-    /// Handles progressive (command ...) pipelines across multiple AutoLISP calls
+    /// Handles progressive (command ...) pipelines across multiple OpenCAD LISP calls
     /// (e.g. (command "_.LINE" p1) followed by loop of (command pi) and ending with (command "C")).
     pub fn process_stream_tokens(&mut self, tokens: &[&str]) -> bool {
         let mut handled_anything = false;
@@ -2398,7 +2398,7 @@ fn is_pause_token(tok: &str) -> bool {
 
 /// Maps dual-mode CAD commands (which show a dialog/palette interactively) and
 /// their standard aliases to their command-line `-` variants when invoked via
-/// AutoLISP `(command ...)` without `(initdia 1)`.
+/// OpenCAD LISP `(command ...)` without `(initdia 1)`.
 fn map_dual_mode_command_to_cmdline(upper_bare: &str, second_upper: &str) -> Option<&'static str> {
     match upper_bare {
         "LAYER" | "LAYERS" | "LA" => Some("-LAYER"),
@@ -2573,7 +2573,7 @@ impl OpenCadRustBridge {
         }
     }
 
-    /// Normalize AutoLISP `(command ...)` tokens for host dispatch, resolving
+    /// Normalize OpenCAD LISP `(command ...)` tokens for host dispatch, resolving
     /// dual-mode commands to their `-` command-line equivalents unless `(initdia 1)`
     /// was called, and tracking multi-call prompt continuation state.
     fn normalize_and_track_command(&mut self, args: &[String]) -> Option<(Vec<String>, Option<String>)> {
@@ -3634,7 +3634,7 @@ impl CadBridge for OpenCadRustBridge {
 
     fn start_undo_mark(&mut self) -> Result<(), String> {
         let _ = crate::context::with_host(|h| {
-            h.push_undo("AutoLISP");
+            h.push_undo("OpenCAD LISP");
         });
         Ok(())
     }
@@ -4260,7 +4260,7 @@ fn entity_to_dxf(ent: &EntityType) -> Vec<(i16, DxfValue)> {
     list
 }
 
-/// Check if a command is registered in the AutoLISP environment for a specific drawing tab
+/// Check if a command is registered in the OpenCAD LISP environment for a specific drawing tab
 pub fn has_lisp_command_for_tab(tab_id: u64, name: &str) -> bool {
     let upper = name.to_uppercase();
     get_registered_commands()
@@ -4270,7 +4270,7 @@ pub fn has_lisp_command_for_tab(tab_id: u64, name: &str) -> bool {
         .is_some_and(|cmds| cmds.contains_key(&upper))
 }
 
-/// Check if a command is registered in the active drawing tab's AutoLISP environment
+/// Check if a command is registered in the active drawing tab's OpenCAD LISP environment
 pub fn has_lisp_command(name: &str) -> bool {
     has_lisp_command_for_tab(crate::context::get_active_tab_id(), name)
 }
@@ -4281,7 +4281,7 @@ fn get_initialized_tabs() -> &'static Mutex<std::collections::HashSet<u64>> {
     INITIALIZED_TABS.get_or_init(|| Mutex::new(std::collections::HashSet::new()))
 }
 
-/// Ensure that a drawing tab has had `scripts/` and Startup Scripts (`autolisp_startup.json`)
+/// Ensure that a drawing tab has had `scripts/` and Startup Scripts (`opencad_lisp_startup.json`)
 /// auto-loaded into its isolated environment at least once.
 pub fn ensure_tab_initialized(host: &mut dyn HostApi) {
     let tab_id = host.tab_id();
@@ -4296,14 +4296,14 @@ pub fn ensure_tab_initialized(host: &mut dyn HostApi) {
     }
 }
 
-/// Clean up and drop the isolated AutoLISP environment and commands for a closed drawing tab
+/// Clean up and drop the isolated OpenCAD LISP environment and commands for a closed drawing tab
 pub fn clean_tab_state(tab_id: u64) {
     get_initialized_tabs().lock().unwrap().remove(&tab_id);
     get_registered_commands().lock().unwrap().remove(&tab_id);
     let _ = get_task_tx().send(LispTask::CloseTab { tab_id });
 }
 
-/// Evaluate an AutoLISP expression directly in the pure Rust environment
+/// Evaluate an OpenCAD LISP expression directly in the pure Rust environment
 pub fn eval_lisp_expr(expr: &str, host: &mut dyn HostApi) -> bool {
     let tab_id = host.tab_id();
     crate::context::set_thread_tab_id(Some(tab_id));
@@ -4345,7 +4345,7 @@ pub fn eval_lisp_expr(expr: &str, host: &mut dyn HostApi) -> bool {
             }
             Ok(Ok(None)) => return true,
             Ok(Err(err)) => {
-                push_cad_error_and_notify_ide(host, "AutoLISP Error", &err);
+                push_cad_error_and_notify_ide(host, "OpenCAD LISP Error", &err);
                 return false;
             }
             Err(std::sync::mpsc::TryRecvError::Disconnected) => return false,
@@ -4356,13 +4356,13 @@ pub fn eval_lisp_expr(expr: &str, host: &mut dyn HostApi) -> bool {
     }
 }
 
-/// Evaluate AutoLISP code returning the formatted result or error string.
-/// Used by OCSIDE (`RunScript`, `DebugScript`, `ReplEval`) and `py_runtime::execute_lisp_named`.
+/// Evaluate OpenCAD LISP code returning the formatted result or error string.
+/// Used by OCIDE (`RunScript`, `DebugScript`, `ReplEval`) and `py_runtime::execute_lisp_named`.
 pub fn eval_lisp_str_headless(code: &str) -> Result<Option<String>, String> {
     eval_lisp_str_headless_impl(code, false)
 }
 
-/// Evaluate AutoLISP code without attaching source spans to the top-level parsed expressions.
+/// Evaluate OpenCAD LISP code without attaching source spans to the top-level parsed expressions.
 /// Used for synthetic command invocations like `(c:mycmd)` during debugging so they do not
 /// trigger `(1, 1)` breakpoints while still stepping into the function's spanned body.
 pub fn eval_lisp_str_unspanned_headless(code: &str) -> Result<Option<String>, String> {
@@ -4412,7 +4412,7 @@ fn eval_lisp_str_headless_impl(code: &str, unspanned: bool) -> Result<Option<Str
         match rx.try_recv() {
             Ok(res) => return res,
             Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                return Err("AutoLISP worker disconnected".to_string());
+                return Err("OpenCAD LISP worker disconnected".to_string());
             }
             Err(std::sync::mpsc::TryRecvError::Empty) => {
                 std::thread::sleep(Duration::from_millis(1));
@@ -4465,7 +4465,7 @@ pub fn ensure_scripts_dir() -> std::io::Result<PathBuf> {
     Ok(dir)
 }
 
-/// List all available AutoLISP scripts in the scripts directory.
+/// List all available OpenCAD LISP scripts in the scripts directory.
 pub fn list_lisp_scripts() -> Vec<String> {
     let Ok(dir) = ensure_scripts_dir() else {
         return Vec::new();
@@ -4490,7 +4490,7 @@ pub fn list_lisp_scripts() -> Vec<String> {
     scripts
 }
 
-/// Return sorted list of registered AutoLISP `c:NAME` commands for a specific drawing tab.
+/// Return sorted list of registered OpenCAD LISP `c:NAME` commands for a specific drawing tab.
 pub fn get_registered_lisp_commands_for_tab(tab_id: u64) -> Vec<String> {
     let mut list: Vec<String> = get_registered_commands()
         .lock()
@@ -4502,7 +4502,7 @@ pub fn get_registered_lisp_commands_for_tab(tab_id: u64) -> Vec<String> {
     list
 }
 
-/// Return sorted list of registered AutoLISP `c:NAME` commands in the active drawing tab.
+/// Return sorted list of registered OpenCAD LISP `c:NAME` commands in the active drawing tab.
 pub fn get_registered_lisp_commands() -> Vec<String> {
     get_registered_lisp_commands_for_tab(crate::context::get_active_tab_id())
 }
@@ -4559,7 +4559,7 @@ fn cache_script_keys(map: &mut HashMap<String, String>, title: &str, code: &str)
     }
 }
 
-/// Store script code loaded or executed from OCSIDE into in-memory cache.
+/// Store script code loaded or executed from OCIDE into in-memory cache.
 pub fn store_loaded_script(title: &str, code: &str) {
     {
         let mut map = LOADED_LISP_SCRIPTS.lock().unwrap();
@@ -4572,8 +4572,8 @@ pub fn store_loaded_script(title: &str, code: &str) {
         .push((current_tab, code.to_string()));
 }
 
-/// Replay any scripts loaded from OCAIDE if the active drawing tab in OCS differs
-/// from the tab ID that was active when OCAIDE ran `eval_lisp_str_headless`.
+/// Replay any scripts loaded from OCIDE if the active drawing tab in OCS differs
+/// from the tab ID that was active when OCIDE ran `eval_lisp_str_headless`.
 pub fn sync_pending_ide_scripts_for_tab(host: &mut dyn HostApi) {
     let tab_id = host.tab_id();
     crate::context::set_thread_tab_id(Some(tab_id));
@@ -4591,7 +4591,7 @@ pub fn sync_pending_ide_scripts_for_tab(host: &mut dyn HostApi) {
     }
 }
 
-/// Retrieve in-memory script code if previously loaded from OCSIDE.
+/// Retrieve in-memory script code if previously loaded from OCIDE.
 pub fn get_loaded_script(name: &str) -> Option<String> {
     let map = LOADED_LISP_SCRIPTS.lock().unwrap();
     if let Some(c) = map.get(name) {
@@ -4667,7 +4667,7 @@ pub(crate) fn match_initget_keyword(kws: &[InitGetKeyword], input: &str) -> Opti
         .map(|k| k.name.clone())
 }
 
-/// AutoLISP integer input: optional sign and digits only.
+/// OpenCAD LISP integer input: optional sign and digits only.
 pub(crate) fn parse_lisp_int(text: &str) -> Option<i64> {
     let t = text.trim();
     let digits = t.strip_prefix(['+', '-']).unwrap_or(t);
@@ -4677,7 +4677,7 @@ pub(crate) fn parse_lisp_int(text: &str) -> Option<i64> {
     t.parse().ok()
 }
 
-/// AutoLISP real input: decimal number, optional sign/exponent, no inf/nan.
+/// OpenCAD LISP real input: decimal number, optional sign/exponent, no inf/nan.
 pub(crate) fn parse_lisp_real(text: &str) -> Option<f64> {
     let t = text.trim();
     if t.is_empty() || !t.bytes().any(|b| b.is_ascii_digit()) {
@@ -4911,7 +4911,7 @@ pub fn auto_load_lisp_scripts_headless() -> usize {
     after_count.saturating_sub(before_count)
 }
 
-/// Load an AutoLISP `.lsp` file into the active tab's environment without requiring a direct `HostApi` ref.
+/// Load an OpenCAD LISP `.lsp` file into the active tab's environment without requiring a direct `HostApi` ref.
 pub fn load_lisp_file_headless(path: &Path) -> Result<(), String> {
     if let Ok(content) = read_lsp_text(path) {
         let mut map = LOADED_LISP_SCRIPTS.lock().unwrap();
@@ -4944,7 +4944,7 @@ pub fn load_lisp_file_headless(path: &Path) -> Result<(), String> {
         match rx.try_recv() {
             Ok(res) => return res,
             Err(std::sync::mpsc::TryRecvError::Disconnected) => {
-                return Err("AutoLISP worker disconnected".to_string());
+                return Err("OpenCAD LISP worker disconnected".to_string());
             }
             Err(std::sync::mpsc::TryRecvError::Empty) => {
                 std::thread::sleep(Duration::from_millis(1));
@@ -5014,7 +5014,7 @@ fn resolve_lisp_script_path(filename: &str) -> Option<PathBuf> {
     None
 }
 
-/// Load an AutoLISP `.lsp` file into the pure Rust environment
+/// Load an OpenCAD LISP `.lsp` file into the pure Rust environment
 pub fn load_lisp_file(path_str: &str, host: &mut dyn HostApi) -> bool {
     let tab_id = host.tab_id();
     crate::context::set_thread_tab_id(Some(tab_id));
@@ -5023,7 +5023,7 @@ pub fn load_lisp_file(path_str: &str, host: &mut dyn HostApi) -> bool {
     }
     let resolved = resolve_lisp_script_path(path_str).unwrap_or_else(|| scripts_dir().join(path_str));
 
-    // If the file is not in `scripts/` on disk, check if it was loaded in memory from OCAIDE or APPLOAD
+    // If the file is not in `scripts/` on disk, check if it was loaded in memory from OCIDE or APPLOAD
     if !resolved.is_file() {
         if let Some(in_mem_code) = get_loaded_script(path_str) {
             let ok = eval_lisp_expr(&in_mem_code, host);
@@ -5045,7 +5045,7 @@ pub fn load_lisp_file(path_str: &str, host: &mut dyn HostApi) -> bool {
                 {
                     return execute_lisp_command(clean_stem, &[], host);
                 }
-                host.push_info(&format!("Loaded AutoLISP script from IDE: {path_str}"));
+                host.push_info(&format!("Loaded OpenCAD LISP script from IDE: {path_str}"));
             }
             return ok;
         }
@@ -5079,13 +5079,13 @@ pub fn load_lisp_file(path_str: &str, host: &mut dyn HostApi) -> bool {
         }
         match rx.try_recv() {
             Ok(Ok(_)) => {
-                host.push_info(&format!("Loaded AutoLISP file: {}", resolved.display()));
+                host.push_info(&format!("Loaded OpenCAD LISP file: {}", resolved.display()));
                 return true;
             }
             Ok(Err(err)) => {
                 push_cad_error_and_notify_ide(
                     host,
-                    &format!("AutoLISP Load Error in {}", resolved.display()),
+                    &format!("OpenCAD LISP Load Error in {}", resolved.display()),
                     &err,
                 );
                 return false;
@@ -5098,7 +5098,7 @@ pub fn load_lisp_file(path_str: &str, host: &mut dyn HostApi) -> bool {
     }
 }
 
-/// Execute a registered AutoLISP command (like TARGET from c:target)
+/// Execute a registered OpenCAD LISP command (like TARGET from c:target)
 pub fn execute_lisp_command(cmd_name: &str, _args: &[String], host: &mut dyn HostApi) -> bool {
     let tab_id = host.tab_id();
     crate::context::set_thread_tab_id(Some(tab_id));
@@ -5136,7 +5136,7 @@ pub fn execute_lisp_command(cmd_name: &str, _args: &[String], host: &mut dyn Hos
             }
             WorkerMsg::Finished(res) => {
                 if let Err(e) = res {
-                    push_cad_error_and_notify_ide(host, "AutoLISP Error", &e);
+                    push_cad_error_and_notify_ide(host, "OpenCAD LISP Error", &e);
                 }
                 return true;
             }
@@ -5160,7 +5160,7 @@ mod tests {
         assert_eq!(decode_lsp_bytes(b"(princ \"caf\xE9\")"), "(princ \"caf\u{e9}\")");
         assert_eq!(decode_lsp_bytes(b"\x80 \x96 \x99 \xFC \xA7"), "\u{20AC} \u{2013} \u{2122} \u{fc} \u{a7}");
 
-        // Verify AutoLISP (load ...) handles Windows-1252 files via host-aware LOAD override
+        // Verify OpenCAD LISP (load ...) handles Windows-1252 files via host-aware LOAD override
         let tmp_path = std::env::temp_dir().join("ocad_test_cp1252_load.lsp");
         std::fs::write(&tmp_path, b"(setq _cp1252_loaded \"caf\xE9 90\xB0\")").unwrap();
         let bridge = std::sync::Arc::new(std::sync::Mutex::new(OpenCadRustBridge::new()));
@@ -5627,10 +5627,10 @@ mod tests {
     #[test]
     fn test_rust_lisp_shape_panel_state_and_get() {
         let code = r#"
-            (oca-panel-register "shape_panel" "Shape Generator"
-                (oca-choice "shape_color" "Color" '("Red" "Blue" "Green") "Red")
-                (oca-checkbox "shape_draw_x" "Draw X Lines" nil)
-                (oca-button "btn_draw" "Draw Circle" "(c:draw-shape)")
+            (oc-panel-register "shape_panel" "Shape Generator"
+                (oc-choice "shape_color" "Color" '("Red" "Blue" "Green") "Red")
+                (oc-checkbox "shape_draw_x" "Draw X Lines" nil)
+                (oc-button "btn_draw" "Draw Circle" "(c:draw-shape)")
             )
         "#;
         let (tx, rx) = std::sync::mpsc::channel();
@@ -5647,7 +5647,7 @@ mod tests {
         let (tx, rx) = std::sync::mpsc::channel();
         let (worker_tx, _) = std::sync::mpsc::channel();
         let _ = get_task_tx().send(LispTask::Eval {
-            code: r#"(list (oca-panel-get "shape_panel" "shape_color") (oca-panel-get "shape_panel" "shape_draw_x"))"#.to_string(),
+            code: r#"(list (oc-panel-get "shape_panel" "shape_color") (oc-panel-get "shape_panel" "shape_draw_x"))"#.to_string(),
             resp: tx,
             worker_tx,
         });
@@ -5663,7 +5663,7 @@ mod tests {
         let (tx, rx) = std::sync::mpsc::channel();
         let (worker_tx, _) = std::sync::mpsc::channel();
         let _ = get_task_tx().send(LispTask::Eval {
-            code: r#"(list (oca-panel-get "shape_panel" "shape_color") (oca-panel-get "shape_panel" "shape_draw_x"))"#.to_string(),
+            code: r#"(list (oc-panel-get "shape_panel" "shape_color") (oc-panel-get "shape_panel" "shape_draw_x"))"#.to_string(),
             resp: tx,
             worker_tx,
         });
@@ -5967,7 +5967,7 @@ mod tests {
     }
 
     #[test]
-    fn test_eval_autolisp_ssget_pipeline() {
+    fn test_eval_opencad_lisp_ssget_pipeline() {
         let code = r#"
             (progn
                 ;; 1. Empty set creation and query
@@ -6497,8 +6497,8 @@ mod tests {
               (defun on-dialog-action (id action values / picked current-tbl new-tbl count-msg mode-val log-val)
                 (cond
                   ((or (= action "pick") (= id "picker"))
-                   (setq picked (oca-get "picker" values))
-                   (setq current-tbl (oca-get "tbl_files" values))
+                   (setq picked (oc-get "picker" values))
+                   (setq current-tbl (oc-get "tbl_files" values))
                    (if (and picked (/= picked ""))
                      (progn
                        (setq new-tbl (append current-tbl (list (list picked "Active"))))
@@ -6517,8 +6517,8 @@ mod tests {
                      (cons "lbl_status" "List cleared. 0 items in table.")
                    ))
                   ((= id "btn_inspect")
-                   (setq mode-val (oca-get "cmb_mode" values))
-                   (setq log-val (oca-get "chk_log" values))
+                   (setq mode-val (oc-get "cmb_mode" values))
+                   (setq log-val (oc-get "chk_log" values))
                    (list
                      (cons "lbl_status"
                            (strcat "Active Mode: " (vl-princ-to-string mode-val)
@@ -6529,30 +6529,30 @@ mod tests {
               )
 
               (setq dlg
-                (oca-dialog "AutoLISP Reactive Dialog Test"
+                (oc-dialog "OpenCAD LISP Reactive Dialog Test"
                   '((width . 560.0) (submit . "Done") (cancel . "Cancel"))
-                  (oca-info "lbl_status" "Ready - Pick a file or click buttons to test reactivity")
-                  (oca-row
-                    (oca-file "picker" "Pick LISP File" "" '((filter . "AutoLISP (*.lsp)") (extensions . ("lsp"))))
-                    (oca-button "btn_clear" "Clear List")
+                  (oc-info "lbl_status" "Ready - Pick a file or click buttons to test reactivity")
+                  (oc-row
+                    (oc-file "picker" "Pick LISP File" "" '((filter . "OpenCAD LISP (*.lsp)") (extensions . ("lsp"))))
+                    (oc-button "btn_clear" "Clear List")
                   )
-                  (oca-row
-                    (oca-table "tbl_files" "Configured Scripts"
+                  (oc-row
+                    (oc-table "tbl_files" "Configured Scripts"
                       '("File Path" "Status")
                       '(("C:/example/first.lsp" "Active")
                         ("C:/example/second.lsp" "Active"))
                       '((allow_add . T) (allow_delete . T))
                     )
                   )
-                  (oca-row
-                    (oca-choice "cmb_mode" "Execution Mode" '("Standard" "Fast" "Debug") "Standard")
-                    (oca-checkbox "chk_log" "Log to Console" T)
-                    (oca-button "btn_inspect" "Inspect State")
+                  (oc-row
+                    (oc-choice "cmb_mode" "Execution Mode" '("Standard" "Fast" "Debug") "Standard")
+                    (oc-checkbox "chk_log" "Log to Console" T)
+                    (oc-button "btn_inspect" "Inspect State")
                   )
                 )
               )
 
-              (setq res (oca-dialog-show dlg 'on-dialog-action))
+              (setq res (oc-dialog-show dlg 'on-dialog-action))
               (if res "SUBMITTED" "CANCELLED")
             )
         "#;
@@ -6592,7 +6592,7 @@ mod tests {
 
         // Verify modal dialog was set
         let dlg = cmd.modal_dialog().expect("Dialog should be set");
-        assert_eq!(dlg.title, "AutoLISP Reactive Dialog Test");
+        assert_eq!(dlg.title, "OpenCAD LISP Reactive Dialog Test");
 
         // Simulate button click: btn_inspect
         let mut current_vals = std::collections::HashMap::new();

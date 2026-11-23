@@ -216,7 +216,7 @@ pub fn start_ide_server() {
             let listener = match TcpListener::bind("127.0.0.1:0") {
                 Ok(l) => l,
                 Err(e) => {
-                    eprintln!("[plugin] [OCSIDE Server] Failed to bind TCP listener: {e}");
+                    eprintln!("[plugin] [OCIDE Server] Failed to bind TCP listener: {e}");
                     return;
                 }
             };
@@ -224,7 +224,7 @@ pub fn start_ide_server() {
             let port = match listener.local_addr() {
                 Ok(addr) => addr.port(),
                 Err(e) => {
-                    eprintln!("[plugin] [OCSIDE Server] Failed to get local port: {e}");
+                    eprintln!("[plugin] [OCIDE Server] Failed to get local port: {e}");
                     return;
                 }
             };
@@ -235,9 +235,9 @@ pub fn start_ide_server() {
                 let _ = std::fs::create_dir_all(parent);
             }
             if let Err(e) = std::fs::write(&port_path, port.to_string()) {
-                eprintln!("[plugin] [OCSIDE Server] Failed to write port file {}: {e}", port_path.display());
+                eprintln!("[plugin] [OCIDE Server] Failed to write port file {}: {e}", port_path.display());
             } else {
-                eprintln!("[plugin] [OCSIDE Server] Listening on 127.0.0.1:{port}, port written to {}", port_path.display());
+                eprintln!("[plugin] [OCIDE Server] Listening on 127.0.0.1:{port}, port written to {}", port_path.display());
             }
 
             for stream in listener.incoming() {
@@ -253,7 +253,7 @@ pub fn start_ide_server() {
                         });
                     }
                     Err(e) => {
-                        eprintln!("[plugin] [OCSIDE Server] Incoming connection error: {e}");
+                        eprintln!("[plugin] [OCIDE Server] Incoming connection error: {e}");
                     }
                 }
             }
@@ -290,7 +290,7 @@ fn handle_client(stream_arc: Arc<Mutex<TcpStream>>) {
                 send_to_stream(&stream_arc, &resp);
             }
             IdeToPlugin::RunScript { title, code } => {
-                eprintln!("[plugin] [OCSIDE Server] Running AutoLISP script: {title}");
+                eprintln!("[plugin] [OCIDE Server] Running OpenCAD LISP script: {title}");
                 crate::dispatcher::set_last_dispatched_command(None);
                 crate::rust_lisp::store_loaded_script(&title, &code);
 
@@ -298,7 +298,7 @@ fn handle_client(stream_arc: Arc<Mutex<TcpStream>>) {
                     send_to_stream(
                         &stream_arc,
                         &PluginToIde::ConsoleOutput {
-                            text: "\n[IDE] Python support is currently shelved; only AutoLISP (.lsp) execution is active.\n".to_string(),
+                            text: "\n[IDE] Python support is currently shelved; only OpenCAD LISP (.lsp) execution is active.\n".to_string(),
                             is_error: true,
                         },
                     );
@@ -326,7 +326,7 @@ fn handle_client(stream_arc: Arc<Mutex<TcpStream>>) {
                             send_to_stream(
                                 &stream_clone,
                                 &PluginToIde::ConsoleOutput {
-                                    text: format!("\n[IDE AutoLISP Error] {e}\n"),
+                                    text: format!("\n[IDE OpenCAD LISP Error] {e}\n"),
                                     is_error: true,
                                 },
                             );
@@ -340,7 +340,7 @@ fn handle_client(stream_arc: Arc<Mutex<TcpStream>>) {
                 breakpoints,
                 step_into,
             } => {
-                eprintln!("[plugin] [OCSIDE Server] Running/Debugging AutoLISP script: {title} (step_into={step_into}, bps={})", breakpoints.len());
+                eprintln!("[plugin] [OCIDE Server] Running/Debugging OpenCAD LISP script: {title} (step_into={step_into}, bps={})", breakpoints.len());
                 crate::dispatcher::set_last_dispatched_command(None);
                 crate::rust_lisp::store_loaded_script(&title, &code);
                 clear_debug_command_queue();
@@ -350,7 +350,7 @@ fn handle_client(stream_arc: Arc<Mutex<TcpStream>>) {
                     send_to_stream(
                         &stream_arc,
                         &PluginToIde::ConsoleOutput {
-                            text: "\n[IDE] Python support is currently shelved; only AutoLISP (.lsp) execution is active.\n".to_string(),
+                            text: "\n[IDE] Python support is currently shelved; only OpenCAD LISP (.lsp) execution is active.\n".to_string(),
                             is_error: true,
                         },
                     );
@@ -406,7 +406,7 @@ fn handle_client(stream_arc: Arc<Mutex<TcpStream>>) {
                                             send_to_stream(
                                                 &stream_clone,
                                                 &PluginToIde::ConsoleOutput {
-                                                    text: format!("\n[IDE AutoLISP Error] {e}\n"),
+                                                    text: format!("\n[IDE OpenCAD LISP Error] {e}\n"),
                                                     is_error: true,
                                                 },
                                             );
@@ -430,7 +430,7 @@ fn handle_client(stream_arc: Arc<Mutex<TcpStream>>) {
                             send_to_stream(
                                 &stream_clone,
                                 &PluginToIde::ConsoleOutput {
-                                    text: format!("\n[IDE AutoLISP Error] {e}\n"),
+                                    text: format!("\n[IDE OpenCAD LISP Error] {e}\n"),
                                     is_error: true,
                                 },
                             );
@@ -455,7 +455,7 @@ fn handle_client(stream_arc: Arc<Mutex<TcpStream>>) {
                                 .map(|opt| opt.unwrap_or_default())
                         }
                         crate::ide::protocol::ReplMode::Python => {
-                            Err("Python support is currently shelved; switch REPL mode to AutoLISP.".to_string())
+                            Err("Python support is currently shelved; switch REPL mode to OpenCAD LISP.".to_string())
                         }
                     };
 
@@ -491,7 +491,7 @@ fn handle_client(stream_arc: Arc<Mutex<TcpStream>>) {
                 code,
                 breakpoints,
             } => {
-                eprintln!("[plugin] [OCSIDE Server] Restarting script: {title}");
+                eprintln!("[plugin] [OCIDE Server] Restarting script: {title}");
                 if let Some(bridge) = crate::context::active_interactive() {
                     bridge.coordinator.notify_finished();
                 }
@@ -532,7 +532,7 @@ fn handle_client(stream_arc: Arc<Mutex<TcpStream>>) {
                 thread::spawn(move || {
                     std::thread::sleep(std::time::Duration::from_millis(50));
 
-                    eprintln!("[plugin] [OCSIDE Server] Attempting dispatch to CAD automation: {cmd_to_dispatch}");
+                    eprintln!("[plugin] [OCIDE Server] Attempting dispatch to CAD automation: {cmd_to_dispatch}");
                     if dispatch_command_to_cad_automation(&cmd_to_dispatch) {
                         send_to_stream(
                             &stream_clone,
@@ -560,7 +560,7 @@ fn handle_client(stream_arc: Arc<Mutex<TcpStream>>) {
                                 send_to_stream(
                                     &stream_clone,
                                     &PluginToIde::ConsoleOutput {
-                                        text: format!("\n[IDE AutoLISP Error] {e}\n"),
+                                        text: format!("\n[IDE OpenCAD LISP Error] {e}\n"),
                                         is_error: true,
                                     },
                                 );
@@ -704,7 +704,7 @@ pub fn force_foreground_ide() {
             let len = GetWindowTextW(hwnd, buf.as_mut_ptr(), 256);
             if len > 0 {
                 let title = String::from_utf16_lossy(&buf[..len as usize]);
-                if title.contains("(OCAIDE)") || title.contains("(OCIDE)") || title.contains("(OCSIDE)") {
+                if title.contains("(OCIDE)") {
                     let fg = GetForegroundWindow();
                     if fg != hwnd {
                         if IsIconic(hwnd) != 0 {
@@ -725,36 +725,36 @@ pub fn force_foreground_ide() {
 }
 
 #[cfg(windows)]
-pub fn force_foreground_ocside() {
+pub fn force_foreground_ocide() {
     force_foreground_ide();
 }
 
 #[cfg(target_os = "macos")]
 pub fn force_foreground_ide() {
     let _ = std::process::Command::new("osascript")
-        .args(["-e", "tell application \"opencad_autolisp_ide\" to activate"])
+        .args(["-e", "tell application \"opencad_lisp_ide\" to activate"])
         .spawn();
 }
 
 #[cfg(target_os = "macos")]
-pub fn force_foreground_ocside() {
+pub fn force_foreground_ocide() {
     force_foreground_ide();
 }
 
 #[cfg(target_os = "linux")]
 pub fn force_foreground_ide() {
     let _ = std::process::Command::new("wmctrl")
-        .args(["-a", "OCAIDE"])
+        .args(["-a", "OCIDE"])
         .spawn()
         .or_else(|_| {
             std::process::Command::new("xdotool")
-                .args(["search", "--name", "OCAIDE", "windowactivate"])
+                .args(["search", "--name", "OCIDE", "windowactivate"])
                 .spawn()
         });
 }
 
 #[cfg(target_os = "linux")]
-pub fn force_foreground_ocside() {
+pub fn force_foreground_ocide() {
     force_foreground_ide();
 }
 
@@ -762,7 +762,7 @@ pub fn force_foreground_ocside() {
 pub fn force_foreground_ide() {}
 
 #[cfg(not(any(windows, target_os = "macos", target_os = "linux")))]
-pub fn force_foreground_ocside() {}
+pub fn force_foreground_ocide() {}
 
 #[cfg(windows)]
 pub fn force_foreground_cad() {
@@ -799,9 +799,7 @@ pub fn force_foreground_cad() {
             if len > 0 {
                 let title = String::from_utf16_lossy(&buf[..len as usize]);
                 let is_cad = (title.contains("Open CAD Studio") || title.contains("OpenCAD"))
-                    && !title.contains("(OCAIDE)")
-                    && !title.contains("(OCIDE)")
-                    && !title.contains("(OCSIDE)");
+                    && !title.contains("(OCIDE)");
                 if is_cad {
                     let fg = GetForegroundWindow();
                     if fg != hwnd {

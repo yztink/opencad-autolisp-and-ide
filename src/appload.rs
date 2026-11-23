@@ -7,14 +7,14 @@ use ocs_plugin_api::dialog::{
 };
 use ocs_plugin_api::host::{CommandStep, HostApi, InteractiveCommand};
 
-/// Persistent list of AutoLISP (.lsp) files that are automatically loaded into every new drawing.
+/// Persistent list of OpenCAD LISP (.lsp) files that are automatically loaded into every new drawing.
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub struct StartupScripts {
     #[serde(default)]
     pub files: Vec<PathBuf>,
 }
 
-/// Returns the path to `autolisp_startup.json` in the OpenCAD Studio configuration directory.
+/// Returns the path to `opencad_lisp_startup.json` in the OpenCAD Studio configuration directory.
 /// Can be overridden via `OCS_STARTUP_SCRIPTS_FILE` for isolated testing.
 pub fn startup_scripts_file() -> PathBuf {
     if let Ok(custom) = std::env::var("OCS_STARTUP_SCRIPTS_FILE") {
@@ -32,7 +32,7 @@ pub fn startup_scripts_file() -> PathBuf {
     } else {
         PathBuf::from(".")
     };
-    base.join("OpenCADStudio").join("autolisp_startup.json")
+    base.join("OpenCADStudio").join("opencad_lisp_startup.json")
 }
 
 /// Deduplicates a slice of file paths while preserving order (case-insensitive on Windows).
@@ -128,7 +128,7 @@ pub fn auto_load_startup_scripts_headless() -> usize {
                 Err(err) => {
                     if let Some(sender) = crate::context::get_global_sender() {
                         let _ = sender.request(ocs_plugin_api::ipc::protocol::PluginRequest::PushError(
-                            format!("AutoLISP Load Error in {}: {err}", path.display()),
+                            format!("OpenCAD LISP Load Error in {}: {err}", path.display()),
                         ));
                     }
                 }
@@ -362,7 +362,7 @@ impl InteractiveCommand for ApploadCommand {
                     id: "startup_add_file".to_string(),
                     label: "Pick a script to add to Startup Scripts:".to_string(),
                     default_path: String::new(),
-                    filter_name: "AutoLISP Files (*.lsp;*.lisp)".to_string(),
+                    filter_name: "OpenCAD LISP Files (*.lsp;*.lisp)".to_string(),
                     extensions: vec!["lsp".to_string(), "lisp".to_string()],
                     save: false,
                 })
@@ -393,9 +393,9 @@ impl InteractiveCommand for ApploadCommand {
                 controls: vec![
                     DialogControl::FilePicker {
                         id: "load_file".to_string(),
-                        label: "AutoLISP File to Load:".to_string(),
+                        label: "OpenCAD LISP File to Load:".to_string(),
                         default_path: String::new(),
-                        filter_name: "AutoLISP Files (*.lsp;*.lisp)".to_string(),
+                        filter_name: "OpenCAD LISP Files (*.lsp;*.lisp)".to_string(),
                         extensions: vec!["lsp".to_string(), "lisp".to_string()],
                         save: false,
                     },
@@ -416,7 +416,7 @@ impl InteractiveCommand for ApploadCommand {
                         id: "startup_add_file".to_string(),
                         label: "Pick a script to add to Startup Scripts:".to_string(),
                         default_path: String::new(),
-                        filter_name: "AutoLISP Files (*.lsp;*.lisp)".to_string(),
+                        filter_name: "OpenCAD LISP Files (*.lsp;*.lisp)".to_string(),
                         extensions: vec!["lsp".to_string(), "lisp".to_string()],
                         save: false,
                     },
@@ -508,7 +508,7 @@ mod tests {
         let temp_dir = std::env::temp_dir().join(format!("ocs_appload_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
-        let config_path = temp_dir.join("autolisp_startup.json");
+        let config_path = temp_dir.join("opencad_lisp_startup.json");
 
         let input = vec![
             PathBuf::from("C:/cad/scripts/beam.lsp"),
@@ -535,7 +535,7 @@ mod tests {
         let temp_dir = std::env::temp_dir().join(format!("ocs_appload_dlg_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
-        let config_path = temp_dir.join("autolisp_startup.json");
+        let config_path = temp_dir.join("opencad_lisp_startup.json");
 
         let mut cmd = ApploadCommand::with_startup_files(vec![PathBuf::from("C:/existing/init.lsp")]);
         let dlg = cmd.modal_dialog().expect("modal dialog should be open initially");
@@ -593,7 +593,7 @@ mod tests {
         let temp_dir = std::env::temp_dir().join(format!("ocs_startup_dlg_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&temp_dir);
         std::fs::create_dir_all(&temp_dir).unwrap();
-        let config_path = temp_dir.join("autolisp_startup.json");
+        let config_path = temp_dir.join("opencad_lisp_startup.json");
 
         let mut cmd = ApploadCommand::startup_only();
         assert_eq!(cmd.prompt(), "STARTUP");

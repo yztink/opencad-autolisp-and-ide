@@ -36,7 +36,7 @@ impl Default for SyntaxColors {
 }
 
 impl SyntaxColors {
-    /// Default OCSIDE theme matching Base16 Mocha.
+    /// Default OCIDE theme matching Base16 Mocha.
     pub fn base16_mocha() -> Self {
         Self {
             background: Color::from_rgb8(0x20, 0x22, 0x25),
@@ -51,12 +51,12 @@ impl SyntaxColors {
         }
     }
 
-    /// Visual LISP IDE (VLIDE) Classic Light Theme.
-    pub fn vlide_classic() -> Self {
+    /// Classic Light Theme.
+    pub fn classic_light() -> Self {
         Self {
             background: Color::from_rgb8(0xFF, 0xFF, 0xFF),
             default_text: Color::from_rgb8(0x00, 0x00, 0x00),
-            comment: Color::from_rgb8(0x80, 0x00, 0x80), // Purple comments in VLIDE
+            comment: Color::from_rgb8(0x80, 0x00, 0x80), // Classic purple comments
             string: Color::from_rgb8(0xA0, 0x52, 0x2D),  // Sienna brown strings
             keyword: Color::from_rgb8(0x00, 0x00, 0xFF), // Blue keywords
             builtin_function: Color::from_rgb8(0x00, 0x00, 0x80), // Navy built-ins
@@ -177,7 +177,7 @@ pub mod opt_color_serde {
     }
 }
 
-/// Supported font weight variants for selection in OCSIDE.
+/// Supported font weight variants for selection in OCIDE.
 pub const FONT_WEIGHT_VARIANTS: &[(&str, iced::font::Weight)] = &[
     ("", iced::font::Weight::Normal),
     (" (Bold)", iced::font::Weight::Bold),
@@ -551,7 +551,7 @@ pub enum LispTokenType {
     Paren,
 }
 
-/// Custom AutoLISP syntax highlighter implementing `iced::advanced::text::highlighter::Highlighter`.
+/// Custom OpenCAD LISP syntax highlighter implementing `iced::advanced::text::highlighter::Highlighter`.
 pub struct LispHighlighter {
     settings: LispHighlightSettings,
     current_line: usize,
@@ -647,7 +647,7 @@ impl iced::advanced::text::highlighter::Highlighter for LispHighlighter {
     }
 }
 
-/// Check if an identifier is a standard AutoLISP keyword or special form.
+/// Check if an identifier is a standard OpenCAD LISP keyword or special form.
 pub fn is_lisp_keyword(ident: &str) -> bool {
     let lower = ident.to_ascii_lowercase();
     matches!(
@@ -676,15 +676,14 @@ pub fn is_lisp_keyword(ident: &str) -> bool {
     )
 }
 
-/// Check if an identifier is a native built-in AutoLISP, VL, VLAX, or CAD function.
+/// Check if an identifier is a native built-in OpenCAD LISP, VL, VLAX, or CAD function.
 pub fn is_lisp_builtin(ident: &str) -> bool {
     let lower = ident.to_ascii_lowercase();
     if lower.starts_with("vl-")
         || lower.starts_with("vlax-")
         || lower.starts_with("vla-")
-        || lower.starts_with("dos_")
         || lower.starts_with("cad:")
-        || lower.starts_with("oca-")
+        || lower.starts_with("oc-")
     {
         return true;
     }
@@ -709,11 +708,12 @@ pub fn is_lisp_builtin(ident: &str) -> bool {
             | "getint" | "getreal" | "getkword" | "initget" | "polar" | "inters" | "distance"
             | "angle" | "trans" | "boole" | "logand" | "logior" | "lsh" | "boundp" | "type"
             | "cvunit" | "acad_colordlg" | "acad_strlsort" | "menucmd" | "graphscr" | "textscr"
-            | "redraw" | "vports" | "ver" | "vl-version"
+            | "redraw" | "vports" | "ver" | "vl-version" | "get_clipboard" | "set_clipboard"
+            | "msgbox"
     )
 }
 
-/// Tokenize a single line of AutoLISP code into highlighting spans.
+/// Tokenize a single line of OpenCAD LISP code into highlighting spans.
 pub fn tokenize_lisp_line(
     line: &str,
     mut in_block_comment: bool,
@@ -1065,9 +1065,9 @@ mod tests {
         let mocha = SyntaxColors::base16_mocha();
         assert_eq!(color_to_hex(mocha.background), "#202225");
 
-        let vlide = SyntaxColors::vlide_classic();
-        assert_eq!(color_to_hex(vlide.background), "#FFFFFF");
-        assert_eq!(color_to_hex(vlide.keyword), "#0000FF"); // Blue
+        let classic = SyntaxColors::classic_light();
+        assert_eq!(color_to_hex(classic.background), "#FFFFFF");
+        assert_eq!(color_to_hex(classic.keyword), "#0000FF"); // Blue
 
         let monokai = SyntaxColors::monokai();
         assert_eq!(color_to_hex(monokai.background), "#272822");
