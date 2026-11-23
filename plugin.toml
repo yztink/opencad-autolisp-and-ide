@@ -1,7 +1,7 @@
 [plugin]
 id = "opencad.lisp_and_ide"
 name = "OpenCAD LISP & IDE"
-version = "0.4.0"
+version = "0.4.1"
 description = "Run OpenCAD LISP routines, commands, and OCIDE inside OpenCAD Studio"
 author = "OpenCAD Contributor"
 license = "GPL-3.0-only"

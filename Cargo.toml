@@ -1,6 +1,6 @@
 [package]
 name = "opencad-lisp-and-ide"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 description = "OpenCAD LISP command, script runner, and OCIDE editor plugin for OpenCAD Studio"
 license = "GPL-3.0-only"
