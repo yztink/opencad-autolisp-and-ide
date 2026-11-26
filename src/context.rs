@@ -264,21 +264,30 @@ impl HostApi for DebugHost {
     fn remove_record(&mut self, _handle: ocs_plugin_api::host::Handle, _app_name: &str) -> bool { true }
     fn push_undo(&mut self, label: &str) {
         if let Some(s) = &self.sender {
-            let label = label.to_string();
-            let s = s.clone();
-            std::thread::spawn(move || {
-                use ocs_plugin_api::ipc::protocol::PluginRequest;
-                let _ = s.request(PluginRequest::PushUndo { label });
+            use ocs_plugin_api::ipc::protocol::PluginRequest;
+            let _ = s.request(PluginRequest::PushUndo {
+                label: label.to_string(),
             });
+        }
+    }
+    fn begin_undo_group(&mut self, label: &str) {
+        if let Some(s) = &self.sender {
+            use ocs_plugin_api::ipc::protocol::PluginRequest;
+            let _ = s.request(PluginRequest::BeginUndoGroup {
+                label: label.to_string(),
+            });
+        }
+    }
+    fn end_undo_group(&mut self) {
+        if let Some(s) = &self.sender {
+            use ocs_plugin_api::ipc::protocol::PluginRequest;
+            let _ = s.request(PluginRequest::EndUndoGroup);
         }
     }
     fn set_dirty(&mut self) {
         if let Some(s) = &self.sender {
-            let s = s.clone();
-            std::thread::spawn(move || {
-                use ocs_plugin_api::ipc::protocol::PluginRequest;
-                let _ = s.request(PluginRequest::SetDirty);
-            });
+            use ocs_plugin_api::ipc::protocol::PluginRequest;
+            let _ = s.request(PluginRequest::SetDirty);
         }
     }
     fn push_info(&mut self, msg: &str) {

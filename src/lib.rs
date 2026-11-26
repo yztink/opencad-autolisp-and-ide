@@ -180,6 +180,7 @@ mod tests {
         pub outputs: Vec<String>,
         pub errors: Vec<String>,
         pub undos: Vec<String>,
+        pub undo_events: Vec<String>,
         pub commands: Vec<String>,
         pub shared_commands: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
         pub shared_errors: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
@@ -206,6 +207,7 @@ mod tests {
                 outputs: Vec::new(),
                 errors: Vec::new(),
                 undos: Vec::new(),
+                undo_events: Vec::new(),
                 commands: Vec::new(),
                 shared_commands,
                 shared_errors,
@@ -229,13 +231,24 @@ mod tests {
             if entity.common().handle.is_null() {
                 entity.as_entity_mut().set_handle(self.doc.allocate_handle());
             }
+            self.undo_events.push("add_entity".to_string());
             self.doc.add_entity(entity).expect("entity added")
         }
         fn bump_geometry(&mut self) { self.bumped = true; }
         fn read_record(&self, _handle: Handle, _app_name: &str) -> Option<&ocs_plugin_api::host::codec::xdata::ExtendedDataRecord> { None }
         fn write_record(&mut self, _handle: Handle, _record: ocs_plugin_api::host::codec::xdata::ExtendedDataRecord) -> bool { true }
         fn remove_record(&mut self, _handle: Handle, _app_name: &str) -> bool { true }
-        fn push_undo(&mut self, label: &str) { self.undos.push(label.to_string()); }
+        fn push_undo(&mut self, label: &str) {
+            self.undos.push(label.to_string());
+            self.undo_events.push(format!("push:{label}"));
+        }
+        fn begin_undo_group(&mut self, label: &str) {
+            self.undos.push(label.to_string());
+            self.undo_events.push(format!("begin:{label}"));
+        }
+        fn end_undo_group(&mut self) {
+            self.undo_events.push("end".to_string());
+        }
         fn set_dirty(&mut self) { self.dirty = true; }
         fn push_info(&mut self, msg: &str) { self.infos.push(msg.to_string()); }
         fn push_output(&mut self, msg: &str) { self.outputs.push(msg.to_string()); }
@@ -2526,6 +2539,159 @@ assert res_state["schedule_len"] == 0, f"Expected 0 after remove_row, got {res_s
         );
         assert_eq!(crate::context::get_active_tab_id(), 987654);
         crate::context::set_active_tab_id(prev_tab);
+    }
+
+    #[test]
+    fn test_vla_undo_mark_groups_entities_and_handles_nesting() {
+        let mut host = MockHost::new();
+
+        // 1. Basic vla-StartUndoMark / vla-EndUndoMark wrapping two entmake calls
+        let ok = crate::rust_lisp::eval_lisp_expr(
+            "(progn \
+               (setq doc (vla-get-ActiveDocument (vlax-get-acad-object))) \
+               (vla-StartUndoMark doc) \
+               (entmake '((0 . \"LINE\") (10 0.0 0.0 0.0) (11 10.0 0.0 0.0))) \
+               (entmake '((0 . \"CIRCLE\") (10 5.0 5.0 0.0) (40 . 2.0))) \
+               (vla-EndUndoMark doc))",
+            &mut host,
+        );
+        assert!(ok, "Expected vla-StartUndoMark/EndUndoMark eval to succeed; errors: {:?}", host.errors);
+        assert_eq!(
+            host.undo_events,
+            vec!["begin:OpenCAD LISP", "add_entity", "add_entity", "end"]
+        );
+
+        // 2. vlax-invoke StartUndoMark / EndUndoMark
+        host.undo_events.clear();
+        let ok = crate::rust_lisp::eval_lisp_expr(
+            "(progn \
+               (setq doc (vla-get-ActiveDocument (vlax-get-acad-object))) \
+               (vlax-invoke doc 'StartUndoMark) \
+               (entmake '((0 . \"LINE\") (10 0.0 1.0 0.0) (11 5.0 1.0 0.0))) \
+               (vlax-invoke doc 'EndUndoMark))",
+            &mut host,
+        );
+        assert!(ok, "Expected vlax-invoke StartUndoMark/EndUndoMark eval to succeed; errors: {:?}", host.errors);
+        assert_eq!(
+            host.undo_events,
+            vec!["begin:OpenCAD LISP", "add_entity", "end"]
+        );
+
+        // 3. Nested StartUndoMark / EndUndoMark keeps one outer group open until outermost EndUndoMark
+        host.undo_events.clear();
+        let ok = crate::rust_lisp::eval_lisp_expr(
+            "(progn \
+               (setq doc (vla-get-ActiveDocument (vlax-get-acad-object))) \
+               (vla-StartUndoMark doc) \
+               (entmake '((0 . \"LINE\") (10 0.0 2.0 0.0) (11 5.0 2.0 0.0))) \
+               (vla-StartUndoMark doc) \
+               (entmake '((0 . \"LINE\") (10 0.0 3.0 0.0) (11 5.0 3.0 0.0))) \
+               (vla-EndUndoMark doc) \
+               (entmake '((0 . \"LINE\") (10 0.0 4.0 0.0) (11 5.0 4.0 0.0))) \
+               (vla-EndUndoMark doc) \
+               (vla-EndUndoMark doc))",
+            &mut host,
+        );
+        assert!(ok, "Expected nested undo mark eval to succeed; errors: {:?}", host.errors);
+        assert_eq!(
+            host.undo_events,
+            vec!["begin:OpenCAD LISP", "add_entity", "add_entity", "add_entity", "end"]
+        );
+    }
+
+    #[test]
+    fn test_vla_undo_mark_closes_on_error_and_exit() {
+        let mut host = MockHost::new();
+
+        // 1. Runtime error inside an open undo mark must still close the host undo group
+        let ok = crate::rust_lisp::eval_lisp_expr(
+            "(progn \
+               (setq doc (vla-get-ActiveDocument (vlax-get-acad-object))) \
+               (vla-StartUndoMark doc) \
+               (entmake '((0 . \"LINE\") (10 0.0 0.0 0.0) (11 1.0 0.0 0.0))) \
+               (/ 1 0))",
+            &mut host,
+        );
+        assert!(!ok, "Expected division by zero to fail");
+        assert_eq!(
+            host.undo_events,
+            vec!["begin:OpenCAD LISP", "add_entity", "end"]
+        );
+
+        // 2. Early (exit) inside an open undo mark must also close the host undo group
+        host.undo_events.clear();
+        let _ = crate::rust_lisp::eval_lisp_expr(
+            "(progn \
+               (setq doc (vla-get-ActiveDocument (vlax-get-acad-object))) \
+               (vla-StartUndoMark doc) \
+               (entmake '((0 . \"LINE\") (10 0.0 0.0 0.0) (11 2.0 0.0 0.0))) \
+               (exit))",
+            &mut host,
+        );
+        assert_eq!(
+            host.undo_events,
+            vec!["begin:OpenCAD LISP", "add_entity", "end"]
+        );
+
+        // 3. Subsequent normal undo mark still works cleanly after cleanup
+        host.undo_events.clear();
+        let ok = crate::rust_lisp::eval_lisp_expr(
+            "(progn \
+               (setq doc (vla-get-ActiveDocument (vlax-get-acad-object))) \
+               (vla-StartUndoMark doc) \
+               (vla-EndUndoMark doc))",
+            &mut host,
+        );
+        assert!(ok);
+        assert_eq!(host.undo_events, vec!["begin:OpenCAD LISP", "end"]);
+    }
+
+    #[test]
+    fn test_debug_host_forwards_undo_groups_synchronously() {
+        struct RecordingUndoSender {
+            events: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+        }
+
+        impl ocs_plugin_api::host::PluginRequestSender for RecordingUndoSender {
+            fn request(
+                &self,
+                req: ocs_plugin_api::ipc::protocol::PluginRequest,
+            ) -> Result<
+                ocs_plugin_api::ipc::protocol::PluginResponse,
+                ocs_plugin_api::host::PluginRequestError,
+            > {
+                match req {
+                    ocs_plugin_api::ipc::protocol::PluginRequest::BeginUndoGroup { label } => {
+                        self.events.lock().unwrap().push(format!("begin:{label}"));
+                    }
+                    ocs_plugin_api::ipc::protocol::PluginRequest::PushUndo { label } => {
+                        self.events.lock().unwrap().push(format!("push:{label}"));
+                    }
+                    ocs_plugin_api::ipc::protocol::PluginRequest::EndUndoGroup => {
+                        self.events.lock().unwrap().push("end".to_string());
+                    }
+                    _ => {}
+                }
+                Ok(ocs_plugin_api::ipc::protocol::PluginResponse::Ok)
+            }
+        }
+
+        let events = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let sender: std::sync::Arc<dyn ocs_plugin_api::host::PluginRequestSender> =
+            std::sync::Arc::new(RecordingUndoSender {
+                events: std::sync::Arc::clone(&events),
+            });
+        let mut host = crate::context::DebugHost::new(Some(sender));
+        host.begin_undo_group("OpenCAD LISP");
+        host.push_undo("Single Step");
+        host.end_undo_group();
+
+        // Synchronous ordering must already be present immediately with zero sleep
+        let recorded = events.lock().unwrap().clone();
+        assert_eq!(
+            recorded,
+            vec!["begin:OpenCAD LISP", "push:Single Step", "end"]
+        );
     }
 }
 

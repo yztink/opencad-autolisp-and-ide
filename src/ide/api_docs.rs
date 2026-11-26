@@ -1325,7 +1325,39 @@ pub const API_DOCS: &[ApiDoc] = &[
         dxf_summary: None,
     },
 
-    // ── 12. Object Model Emulation (vlax-*) ─────────────────────────────────
+    // ── 12. Object Model Emulation (vlax-* / vla-*) ─────────────────────────
+    ApiDoc {
+        name: "vlax-get-acad-object",
+        signature: "(vlax-get-acad-object) -> vla-object",
+        description: "Returns the top-level CAD application VLA object.",
+        snippet: "(setq app (vlax-get-acad-object))\n",
+        category: "Object Model",
+        dxf_summary: None,
+    },
+    ApiDoc {
+        name: "vla-get-ActiveDocument",
+        signature: "(vla-get-ActiveDocument app) -> vla-object",
+        description: "Returns the active drawing document VLA object for app.",
+        snippet: "(setq doc (vla-get-ActiveDocument (vlax-get-acad-object)))\n",
+        category: "Object Model",
+        dxf_summary: None,
+    },
+    ApiDoc {
+        name: "vla-StartUndoMark",
+        signature: "(vla-StartUndoMark doc) -> nil",
+        description: "Begins a grouped undo mark on doc so subsequent drawing edits undo as a single step until vla-EndUndoMark is called.",
+        snippet: "(vla-StartUndoMark doc)\n",
+        category: "Object Model",
+        dxf_summary: None,
+    },
+    ApiDoc {
+        name: "vla-EndUndoMark",
+        signature: "(vla-EndUndoMark doc) -> nil",
+        description: "Ends the current grouped undo mark started by vla-StartUndoMark on doc.",
+        snippet: "(vla-EndUndoMark doc)\n",
+        category: "Object Model",
+        dxf_summary: None,
+    },
     ApiDoc {
         name: "vlax-ename->vla-object",
         signature: "(vlax-ename->vla-object ename) -> vla-object",

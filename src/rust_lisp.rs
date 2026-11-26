@@ -377,6 +377,29 @@ fn emit_interactive_output(msg: &str) {
     }
 }
 
+fn close_leaked_undo_marks(bridge: &Arc<Mutex<OpenCadRustBridge>>) {
+    let should_end_now = {
+        let mut br = bridge.lock().unwrap();
+        if br.undo_mark_depth > 0 {
+            br.undo_mark_depth = 0;
+            if active_interactive().is_some() {
+                br.deferred_end_undo_group = true;
+                false
+            } else {
+                br.deferred_end_undo_group = false;
+                true
+            }
+        } else {
+            false
+        }
+    };
+    if should_end_now {
+        let _ = crate::context::with_host(|h| {
+            h.end_undo_group();
+        });
+    }
+}
+
 fn finish_interactive_or_eval(
     eval_res: Result<Value, LispError>,
     buffered: String,
@@ -592,6 +615,7 @@ fn get_task_tx() -> &'static std::sync::mpsc::Sender<LispTask> {
                             LISP_OUTPUT_BUFFER.lock().unwrap().clear();
                             crate::context::set_worker_tx(Some(worker_tx));
                             let eval_res = eval_str(&code, &mut env);
+                            close_leaked_undo_marks(&global_bridge);
                             crate::context::set_worker_tx(None);
                             lisp_core::set_debug_step_mode(lisp_core::DebugStepMode::None);
                             if DEBUG_PAUSED_DURING_TASK.swap(false, std::sync::atomic::Ordering::SeqCst) {
@@ -614,6 +638,7 @@ fn get_task_tx() -> &'static std::sync::mpsc::Sender<LispTask> {
                             LISP_OUTPUT_BUFFER.lock().unwrap().clear();
                             crate::context::set_worker_tx(Some(worker_tx));
                             let eval_res = lisp_core::eval_str_unspanned(&code, &mut env);
+                            close_leaked_undo_marks(&global_bridge);
                             crate::context::set_worker_tx(None);
                             lisp_core::set_debug_step_mode(lisp_core::DebugStepMode::None);
                             if DEBUG_PAUSED_DURING_TASK.swap(false, std::sync::atomic::Ordering::SeqCst) {
@@ -648,6 +673,7 @@ fn get_task_tx() -> &'static std::sync::mpsc::Sender<LispTask> {
                                 }
                                 Err(e) => Err(e.to_string()),
                             };
+                            close_leaked_undo_marks(&global_bridge);
                             global_bridge.lock().unwrap().reset_stream();
                             crate::context::set_worker_tx(None);
                             let _ = resp.send(res);
@@ -658,6 +684,7 @@ fn get_task_tx() -> &'static std::sync::mpsc::Sender<LispTask> {
                             LISP_OUTPUT_BUFFER.lock().unwrap().clear();
                             crate::context::set_worker_tx(Some(worker_tx.clone()));
                             let eval_res = lisp_core::eval_str_unspanned(&lisp_call, &mut env);
+                            close_leaked_undo_marks(&global_bridge);
                             crate::context::set_worker_tx(None);
                             lisp_core::set_debug_step_mode(lisp_core::DebugStepMode::None);
                             let was_paused = DEBUG_PAUSED_DURING_TASK.swap(false, std::sync::atomic::Ordering::SeqCst);
@@ -874,6 +901,8 @@ pub struct OpenCadRustBridge {
     pub next_ss_handle: u64,
     pub previous_selection: Vec<u64>,
     pub table_cursors: HashMap<String, usize>,
+    pub undo_mark_depth: usize,
+    pub deferred_end_undo_group: bool,
 }
 
 fn dxf_to_str(val: &DxfValue) -> String {
@@ -1769,15 +1798,20 @@ pub fn apply_host_sysvar(host: &mut dyn HostApi, key: &str, val: &DxfValue) -> R
 }
 
 fn flush_deferred_setvars(bridge: &Arc<Mutex<OpenCadRustBridge>>) {
-    let (pending_vars, pending_mods, pending_dels) = {
+    let (pending_vars, pending_mods, pending_dels, close_undo_group) = {
         let mut br = bridge.lock().unwrap();
         (
             std::mem::take(&mut br.deferred_setvars),
             std::mem::take(&mut br.deferred_entmods),
             std::mem::take(&mut br.deferred_entdels),
+            std::mem::take(&mut br.deferred_end_undo_group),
         )
     };
-    if pending_vars.is_empty() && pending_mods.is_empty() && pending_dels.is_empty() {
+    if pending_vars.is_empty()
+        && pending_mods.is_empty()
+        && pending_dels.is_empty()
+        && !close_undo_group
+    {
         return;
     }
     if let Some(sender) = crate::context::get_global_sender() {
@@ -1804,7 +1838,12 @@ fn flush_deferred_setvars(bridge: &Arc<Mutex<OpenCadRustBridge>>) {
             for handle in pending_dels {
                 let _ = host.remove_entity(handle);
             }
+            if close_undo_group {
+                host.end_undo_group();
+            }
         });
+    } else if close_undo_group {
+        let _ = with_host(|h| h.end_undo_group());
     }
 }
 
@@ -1826,6 +1865,8 @@ impl OpenCadRustBridge {
             next_ss_handle: 1,
             previous_selection: Vec::new(),
             table_cursors: HashMap::new(),
+            undo_mark_depth: 0,
+            deferred_end_undo_group: false,
         }
     }
 
@@ -3633,16 +3674,33 @@ impl CadBridge for OpenCadRustBridge {
     }
 
     fn start_undo_mark(&mut self) -> Result<(), String> {
-        let _ = crate::context::with_host(|h| {
-            h.push_undo("OpenCAD LISP");
-        });
+        if self.undo_mark_depth == 0 {
+            if self.deferred_end_undo_group {
+                self.deferred_end_undo_group = false;
+            } else {
+                let _ = crate::context::with_host(|h| {
+                    h.begin_undo_group("OpenCAD LISP");
+                });
+            }
+        }
+        self.undo_mark_depth += 1;
         Ok(())
     }
 
     fn end_undo_mark(&mut self) -> Result<(), String> {
-        let _ = crate::context::with_host(|h| {
-            h.set_dirty();
-        });
+        if self.undo_mark_depth == 0 {
+            return Ok(());
+        }
+        self.undo_mark_depth -= 1;
+        if self.undo_mark_depth == 0 {
+            if active_interactive().is_some() {
+                self.deferred_end_undo_group = true;
+            } else {
+                let _ = crate::context::with_host(|h| {
+                    h.end_undo_group();
+                });
+            }
+        }
         Ok(())
     }
 
