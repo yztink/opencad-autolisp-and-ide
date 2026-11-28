@@ -106,9 +106,10 @@ pub fn auto_load_startup_scripts(host: &mut dyn HostApi) -> usize {
                 loaded += 1;
             }
         } else {
-            host.push_error(&format!(
-                "APPLOAD: Startup script not found: {}",
-                path.display()
+            let path_str = path.display().to_string();
+            host.push_error(&crate::i18n::tr_args(
+                "appload-err-not-found",
+                &[("path", path_str.as_str().into())],
             ));
         }
     }
@@ -127,15 +128,26 @@ pub fn auto_load_startup_scripts_headless() -> usize {
                 }
                 Err(err) => {
                     if let Some(sender) = crate::context::get_global_sender() {
+                        let path_str = path.display().to_string();
                         let _ = sender.request(ocs_plugin_api::ipc::protocol::PluginRequest::PushError(
-                            format!("OpenCAD LISP Load Error in {}: {err}", path.display()),
+                            crate::i18n::tr_args(
+                                "appload-err-load-failed",
+                                &[
+                                    ("path", path_str.as_str().into()),
+                                    ("error", err.as_str().into()),
+                                ],
+                            ),
                         ));
                     }
                 }
             }
         } else if let Some(sender) = crate::context::get_global_sender() {
+            let path_str = path.display().to_string();
             let _ = sender.request(ocs_plugin_api::ipc::protocol::PluginRequest::PushError(
-                format!("APPLOAD: Startup script not found: {}", path.display()),
+                crate::i18n::tr_args(
+                    "appload-err-not-found",
+                    &[("path", path_str.as_str().into())],
+                ),
             ));
         }
     }
@@ -268,19 +280,25 @@ impl ApploadCommand {
 
                 if let Err(e) = save_startup_scripts_to(config_path, &deduped) {
                     if let Some(sender) = crate::context::get_global_sender() {
+                        let err_str = e.to_string();
                         let _ = sender.request(
-                            ocs_plugin_api::ipc::protocol::PluginRequest::PushError(format!(
-                                "APPLOAD: Failed to save Startup Scripts: {e}"
-                            )),
+                            ocs_plugin_api::ipc::protocol::PluginRequest::PushError(
+                                crate::i18n::tr_args(
+                                    "appload-err-save-failed",
+                                    &[("error", err_str.as_str().into())],
+                                ),
+                            ),
                         );
                     }
                 } else if deduped != prev_set {
                     if let Some(sender) = crate::context::get_global_sender() {
                         let _ = sender.request(
-                            ocs_plugin_api::ipc::protocol::PluginRequest::PushInfo(format!(
-                                "APPLOAD: Startup Scripts updated ({} file(s) remembered).",
-                                deduped.len()
-                            )),
+                            ocs_plugin_api::ipc::protocol::PluginRequest::PushInfo(
+                                crate::i18n::tr_args(
+                                    "appload-info-updated",
+                                    &[("count", deduped.len().into())],
+                                ),
+                            ),
                         );
                     }
                 }
@@ -354,27 +372,26 @@ impl InteractiveCommand for ApploadCommand {
             .collect();
 
         if self.startup_only {
-            let dialog = DialogDef::new("Startup Scripts")
+            let dialog = DialogDef::new(crate::i18n::tr("appload-startup-title"))
                 .width(580.0)
-                .submit_label("OK")
-                .cancel_label("Cancel")
+                .submit_label(crate::i18n::tr("appload-btn-ok"))
+                .cancel_label(crate::i18n::tr("appload-btn-cancel"))
                 .with_control(DialogControl::FilePicker {
                     id: "startup_add_file".to_string(),
-                    label: "Pick a script to add to Startup Scripts:".to_string(),
+                    label: crate::i18n::tr("appload-label-pick-startup"),
                     default_path: String::new(),
-                    filter_name: "OpenCAD LISP Files (*.lsp;*.lisp)".to_string(),
+                    filter_name: crate::i18n::tr("appload-filter-lisp"),
                     extensions: vec!["lsp".to_string(), "lisp".to_string()],
                     save: false,
                 })
                 .with_control(DialogControl::InfoText {
-                    text: "Selected scripts above are automatically added to the list below."
-                        .to_string(),
+                    text: crate::i18n::tr("appload-info-auto-add"),
                     align_h: Some(HorizontalAlign::Left),
                 })
                 .with_control(DialogControl::Table {
                     id: "startup_files".to_string(),
-                    label: Some("Startup Scripts List (Auto-loaded in every drawing):".to_string()),
-                    headers: vec!["Auto-Loaded File Path".to_string()],
+                    label: Some(crate::i18n::tr("appload-table-startup-only")),
+                    headers: vec![crate::i18n::tr("appload-col-path")],
                     rows,
                     allow_add: true,
                     allow_delete: true,
@@ -382,53 +399,51 @@ impl InteractiveCommand for ApploadCommand {
             return Some(dialog);
         }
 
-        let dialog = DialogDef::new("Load/Unload Applications (APPLOAD)")
+        let dialog = DialogDef::new(crate::i18n::tr("appload-title"))
             .width(580.0)
-            .submit_label("OK")
-            .cancel_label("Cancel")
+            .submit_label(crate::i18n::tr("appload-btn-ok"))
+            .cancel_label(crate::i18n::tr("appload-btn-cancel"))
             .with_control(DialogControl::Fields {
                 id: "load_section".to_string(),
-                title: Some("Load into Current Drawing".to_string()),
+                title: Some(crate::i18n::tr("appload-section-load")),
                 collapsed: false,
                 controls: vec![
                     DialogControl::FilePicker {
                         id: "load_file".to_string(),
-                        label: "OpenCAD LISP File to Load:".to_string(),
+                        label: crate::i18n::tr("appload-label-load-file"),
                         default_path: String::new(),
-                        filter_name: "OpenCAD LISP Files (*.lsp;*.lisp)".to_string(),
+                        filter_name: crate::i18n::tr("appload-filter-lisp"),
                         extensions: vec!["lsp".to_string(), "lisp".to_string()],
                         save: false,
                     },
                     DialogControl::Checkbox {
                         id: "also_add_to_startup".to_string(),
-                        label: "Also add this file to Startup Scripts (auto-load in every drawing)"
-                            .to_string(),
+                        label: crate::i18n::tr("appload-checkbox-add-startup"),
                         default: false,
                     },
                 ],
             })
             .with_control(DialogControl::Fields {
                 id: "startup_section".to_string(),
-                title: Some("Startup Scripts (Auto-loaded with each new drawing)".to_string()),
+                title: Some(crate::i18n::tr("appload-section-startup")),
                 collapsed: false,
                 controls: vec![
                     DialogControl::FilePicker {
                         id: "startup_add_file".to_string(),
-                        label: "Pick a script to add to Startup Scripts:".to_string(),
+                        label: crate::i18n::tr("appload-label-pick-startup"),
                         default_path: String::new(),
-                        filter_name: "OpenCAD LISP Files (*.lsp;*.lisp)".to_string(),
+                        filter_name: crate::i18n::tr("appload-filter-lisp"),
                         extensions: vec!["lsp".to_string(), "lisp".to_string()],
                         save: false,
                     },
                     DialogControl::InfoText {
-                        text: "Selected scripts above are automatically added to the list below."
-                            .to_string(),
+                        text: crate::i18n::tr("appload-info-auto-add"),
                         align_h: Some(HorizontalAlign::Left),
                     },
                     DialogControl::Table {
                         id: "startup_files".to_string(),
-                        label: Some("Remembered Startup Scripts:".to_string()),
-                        headers: vec!["Auto-Loaded File Path".to_string()],
+                        label: Some(crate::i18n::tr("appload-table-remembered")),
+                        headers: vec![crate::i18n::tr("appload-col-path")],
                         rows,
                         allow_add: true,
                         allow_delete: true,
@@ -455,15 +470,17 @@ impl InteractiveCommand for ApploadCommand {
                     let mut updates = HashMap::new();
                     updates.insert("startup_files".to_string(), DialogValue::Table(rows));
                     updates.insert("startup_add_file".to_string(), DialogValue::FilePath(String::new()));
-                    let filename = path.file_name().map(|n| n.to_string_lossy()).unwrap_or_default();
-                    let status_msg = format!("Added \"{}\" to startup scripts.", filename);
+                    let filename = path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                    let status_msg = crate::i18n::tr_args(
+                        "appload-status-added",
+                        &[("file", filename.as_str().into())],
+                    );
                     updates.insert(
                         "startup_info".to_string(),
                         DialogValue::Text(status_msg.clone()),
                     );
                     updates.insert(
-                        "Selected scripts above are automatically added to the list below."
-                            .to_string(),
+                        crate::i18n::tr("appload-info-auto-add"),
                         DialogValue::Text(status_msg),
                     );
                     return DialogActionResponse::UpdateValues(updates);
@@ -474,16 +491,18 @@ impl InteractiveCommand for ApploadCommand {
                 let row_idx = idx as usize;
                 if row_idx < self.startup_files.len() {
                     let removed = self.startup_files.remove(row_idx);
-                    let filename = removed.file_name().map(|n| n.to_string_lossy()).unwrap_or_default();
+                    let filename = removed.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
                     let mut updates = HashMap::new();
-                    let status_msg = format!("Removed \"{}\" from startup scripts.", filename);
+                    let status_msg = crate::i18n::tr_args(
+                        "appload-status-removed",
+                        &[("file", filename.as_str().into())],
+                    );
                     updates.insert(
                         "startup_info".to_string(),
                         DialogValue::Text(status_msg.clone()),
                     );
                     updates.insert(
-                        "Selected scripts above are automatically added to the list below."
-                            .to_string(),
+                        crate::i18n::tr("appload-info-auto-add"),
                         DialogValue::Text(status_msg),
                     );
                     return DialogActionResponse::UpdateValues(updates);

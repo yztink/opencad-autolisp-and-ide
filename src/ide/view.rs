@@ -2,6 +2,7 @@
 //! for writing, testing, and debugging OpenCAD LISP scripts directly in OpenCAD Studio.
 //! Supports both a top-level native OS window (with Alt-Tab multitasking) and an in-canvas modal.
 
+use crate::i18n::{tr, tr_args};
 use crate::ide::highlight::{available_monospace_fonts, DEFAULT_FONT_NAME};
 use crate::ide::{ContextMenuState, IdeMessage, IdeSettings, IdeTab, SettingsTab, SyntaxColorTarget};
 use iced::widget::{
@@ -329,9 +330,9 @@ fn editor_context_menu(
     };
 
     let watch_label = if let Some(ref ident) = target_ident {
-        format!("Add to Watch: '{ident}' (Shift+F9)")
+        tr_args("ctx-add-watch-ident", &[("ident", ident.as_str().into())])
     } else {
-        "Add to Watch (Shift+F9)".to_string()
+        tr("ctx-add-watch")
     };
     let watch_msg = target_ident
         .map(IdeMessage::AddWatch)
@@ -339,12 +340,12 @@ fn editor_context_menu(
 
     let (bp_label, bp_msg) = if let Some((bp, preview)) = target_bp {
         (
-            format!("Toggle Breakpoint: {preview} (F9)"),
+            tr_args("ctx-toggle-bp-preview", &[("preview", preview.as_str().into())]),
             Some(IdeMessage::ToggleParenBreakpoint(bp)),
         )
     } else {
         (
-            format!("Toggle Breakpoint (Line {cursor_line}, F9)"),
+            tr_args("ctx-toggle-bp-line", &[("line", cursor_line.into())]),
             Some(IdeMessage::ToggleBreakpointAtCursor),
         )
     };
@@ -360,14 +361,14 @@ fn editor_context_menu(
     };
 
     let menu = column![
-        item("Copy (Ctrl+C)".to_string(), has_selection.then_some(IdeMessage::EditorCopy)),
-        item("Paste (Ctrl+V)".to_string(), Some(IdeMessage::EditorPasteRequest)),
+        item(tr("ctx-copy"), has_selection.then_some(IdeMessage::EditorCopy)),
+        item(tr("ctx-paste"), Some(IdeMessage::EditorPasteRequest)),
         menu_sep(),
-        item("Find (Ctrl+F)".to_string(), Some(IdeMessage::OpenFind)),
-        item("Replace (Ctrl+H)".to_string(), Some(IdeMessage::OpenReplace)),
+        item(tr("ctx-find"), Some(IdeMessage::OpenFind)),
+        item(tr("ctx-replace"), Some(IdeMessage::OpenReplace)),
         menu_sep(),
-        item("Format Selection (Ctrl+Shift+F)".to_string(), Some(IdeMessage::FormatSelection)),
-        item("Format Document (Shift+Alt+F)".to_string(), Some(IdeMessage::FormatDocument)),
+        item(tr("ctx-format-selection"), Some(IdeMessage::FormatSelection)),
+        item(tr("ctx-format-document"), Some(IdeMessage::FormatDocument)),
         menu_sep(),
         item(watch_label, watch_msg),
         menu_sep(),
@@ -446,8 +447,8 @@ fn render_autocomplete_popup<'a>(
         let func_name = name.clone();
 
         let category = API_DOCS.iter().find(|d| d.name.eq_ignore_ascii_case(name))
-            .map(|d| d.category)
-            .unwrap_or("Custom");
+            .map(|d| d.category.to_string())
+            .unwrap_or_else(|| tr("autocomplete-custom"));
 
         let row_item = button(
             row![
@@ -501,9 +502,9 @@ fn render_autocomplete_popup<'a>(
 
     let hint_footer = container(
         row![
-            text("↑/↓ Navigate").size(9).style(muted_style),
+            text(tr("autocomplete-navigate")).size(9).style(muted_style),
             Space::new().width(Fill),
-            text("Tab Complete").size(9).style(muted_style),
+            text(tr("autocomplete-complete")).size(9).style(muted_style),
         ]
         .align_y(iced::Center),
     )
@@ -556,21 +557,26 @@ fn render_find_replace_overlay<'a>(
     let count_text = if find_replace.find_query.is_empty() {
         String::new()
     } else if match_count == 0 {
-        "No results".to_string()
+        tr("find-no-results")
     } else if let Some(idx) = find_replace.current_match_idx {
-        format!("{} of {}", idx + 1, match_count)
+        tr_args(
+            "find-match-of",
+            &[("current", (idx + 1).into()), ("total", match_count.into())],
+        )
     } else {
-        format!("{match_count} matches")
+        tr_args("find-match-count", &[("count", match_count.into())])
     };
 
-    let toggle_replace_btn = button(
-        text(if find_replace.show_replace { "▼" } else { "▶" }).size(10)
-    )
-    .on_press(IdeMessage::ToggleFindShowReplace)
-    .padding([2, 5])
-    .style(button::text);
+    let toggle_replace_btn = ide_tooltip(
+        button(text(if find_replace.show_replace { "▼" } else { "▶" }).size(10))
+            .on_press(IdeMessage::ToggleFindShowReplace)
+            .padding([2, 5])
+            .style(button::text),
+        tr("find-toggle-replace-tip"),
+    );
 
-    let find_input = text_input("Find...", &find_replace.find_query)
+    let find_placeholder = tr("find-placeholder");
+    let find_input = text_input(&find_placeholder, &find_replace.find_query)
         .id(FIND_INPUT_ID)
         .on_input(IdeMessage::FindQueryChanged)
         .on_submit(IdeMessage::FindNext)
@@ -583,30 +589,45 @@ fn render_find_replace_overlay<'a>(
         .style(|_t| text::Style { color: Some(iced::Color::from_rgb(0.65, 0.65, 0.65)) })
         .width(Length::Fixed(65.0));
 
-    let prev_btn = button(text("▲").size(10))
-        .on_press(IdeMessage::FindPrev)
-        .padding([3, 6])
-        .style(button::secondary);
+    let prev_btn = ide_tooltip(
+        button(text("▲").size(10))
+            .on_press(IdeMessage::FindPrev)
+            .padding([3, 6])
+            .style(button::secondary),
+        tr("find-prev-tip"),
+    );
 
-    let next_btn = button(text("▼").size(10))
-        .on_press(IdeMessage::FindNext)
-        .padding([3, 6])
-        .style(button::secondary);
+    let next_btn = ide_tooltip(
+        button(text("▼").size(10))
+            .on_press(IdeMessage::FindNext)
+            .padding([3, 6])
+            .style(button::secondary),
+        tr("find-next-tip"),
+    );
 
-    let case_btn = button(text("Aa").size(10).font(iced::Font::MONOSPACE))
-        .on_press(IdeMessage::ToggleFindMatchCase)
-        .padding([3, 5])
-        .style(if find_replace.match_case { button::primary } else { button::secondary });
+    let case_btn = ide_tooltip(
+        button(text("Aa").size(10).font(iced::Font::MONOSPACE))
+            .on_press(IdeMessage::ToggleFindMatchCase)
+            .padding([3, 5])
+            .style(if find_replace.match_case { button::primary } else { button::secondary }),
+        tr("find-case-tip"),
+    );
 
-    let word_btn = button(text("ab").size(10).font(iced::Font::MONOSPACE))
-        .on_press(IdeMessage::ToggleFindWholeWord)
-        .padding([3, 5])
-        .style(if find_replace.match_whole_word { button::primary } else { button::secondary });
+    let word_btn = ide_tooltip(
+        button(text("ab").size(10).font(iced::Font::MONOSPACE))
+            .on_press(IdeMessage::ToggleFindWholeWord)
+            .padding([3, 5])
+            .style(if find_replace.match_whole_word { button::primary } else { button::secondary }),
+        tr("find-word-tip"),
+    );
 
-    let close_btn = button(text("✕").size(10))
-        .on_press(IdeMessage::CloseFind)
-        .padding([2, 5])
-        .style(button::text);
+    let close_btn = ide_tooltip(
+        button(text("✕").size(10))
+            .on_press(IdeMessage::CloseFind)
+            .padding([2, 5])
+            .style(button::text),
+        tr("find-close-tip"),
+    );
 
     let row1 = row![
         toggle_replace_btn,
@@ -624,7 +645,8 @@ fn render_find_replace_overlay<'a>(
     let mut content_col = column![row1].spacing(4);
 
     if find_replace.show_replace {
-        let replace_input = text_input("Replace with...", &find_replace.replace_query)
+        let replace_placeholder = tr("find-replace-placeholder");
+        let replace_input = text_input(&replace_placeholder, &find_replace.replace_query)
             .id(REPLACE_INPUT_ID)
             .on_input(IdeMessage::ReplaceQueryChanged)
             .on_submit(IdeMessage::ReplaceCurrent)
@@ -632,12 +654,12 @@ fn render_find_replace_overlay<'a>(
             .padding([4, 6])
             .width(Length::Fixed(160.0));
 
-        let replace_btn = button(text("Replace").size(10))
+        let replace_btn = button(text(tr("find-btn-replace")).size(10))
             .on_press(IdeMessage::ReplaceCurrent)
             .padding([3, 8])
             .style(button::secondary);
 
-        let replace_all_btn = button(text("All").size(10))
+        let replace_all_btn = button(text(tr("find-btn-all")).size(10))
             .on_press(IdeMessage::ReplaceAll)
             .padding([3, 8])
             .style(button::secondary);
@@ -768,11 +790,11 @@ pub fn view_standalone_window<'a>(
 
 fn ide_tooltip<'a>(
     content: impl Into<Element<'a, IdeMessage>>,
-    tip: &'static str,
+    tip: impl Into<String>,
 ) -> Element<'a, IdeMessage> {
     iced::widget::tooltip(
         content,
-        container(text(tip).size(12))
+        container(text(tip.into()).size(12))
             .padding([4, 8])
             .style(|theme: &Theme| container::Style {
                 background: Some(Background::Color(IDE_DARK_GRAY)),
@@ -791,7 +813,7 @@ fn ide_tooltip<'a>(
 }
 
 fn render_syntax_swatch<'a>(
-    label: &'static str,
+    label: impl Into<String>,
     color: iced::Color,
     is_sel: bool,
     msg: IdeMessage,
@@ -837,9 +859,9 @@ fn render_settings_dialog<'a>(
     _theme: &'a Theme,
 ) -> Element<'a, IdeMessage> {
     let title_row = row![
-        text("⚙ IDE Settings").size(15),
+        text(tr("settings-title")).size(15),
         Space::new().width(Fill),
-        button(text("Done").size(12))
+        button(text(tr("settings-btn-done")).size(12))
             .on_press(IdeMessage::ToggleSettings)
             .padding([4, 14])
             .style(button::primary),
@@ -851,17 +873,17 @@ fn render_settings_dialog<'a>(
     .spacing(8)
     .align_y(iced::Center);
 
-    let tab_general_btn = button(text("⚙ General & Debugger").size(12))
+    let tab_general_btn = button(text(tr("settings-tab-general")).size(12))
         .on_press(IdeMessage::SetSettingsTab(SettingsTab::General))
         .padding([6, 12])
         .style(if settings_tab == SettingsTab::General { button::primary } else { ide_secondary_button });
 
-    let tab_syntax_btn = button(text("🎨 Editor, Font & Syntax").size(12))
+    let tab_syntax_btn = button(text(tr("settings-tab-editor")).size(12))
         .on_press(IdeMessage::SetSettingsTab(SettingsTab::EditorSyntax))
         .padding([6, 12])
         .style(if settings_tab == SettingsTab::EditorSyntax { button::primary } else { ide_secondary_button });
 
-    let tab_format_btn = button(text("📐 OpenCAD LISP Formatting").size(12))
+    let tab_format_btn = button(text(tr("settings-tab-formatting")).size(12))
         .on_press(IdeMessage::SetSettingsTab(SettingsTab::Formatting))
         .padding([6, 12])
         .style(if settings_tab == SettingsTab::Formatting { button::primary } else { ide_secondary_button });
@@ -882,43 +904,43 @@ fn render_settings_dialog<'a>(
         SettingsTab::General => {
             // Breakpoint presets
             let bp_presets = [
-                ("Dark Red (Default)", iced::Color::from_rgba(0.55, 0.12, 0.12, 0.45)),
-                ("Crimson", iced::Color::from_rgba(0.80, 0.10, 0.15, 0.45)),
-                ("Burgundy", iced::Color::from_rgba(0.45, 0.05, 0.25, 0.45)),
-                ("Purple", iced::Color::from_rgba(0.50, 0.15, 0.65, 0.45)),
-                ("Orange", iced::Color::from_rgba(0.85, 0.40, 0.05, 0.45)),
-                ("Navy Blue", iced::Color::from_rgba(0.12, 0.25, 0.65, 0.45)),
-                ("Charcoal", iced::Color::from_rgba(0.20, 0.20, 0.20, 0.45)),
-                ("Teal", iced::Color::from_rgba(0.10, 0.50, 0.50, 0.45)),
+                ("color-dark-red-default", iced::Color::from_rgba(0.55, 0.12, 0.12, 0.45)),
+                ("color-crimson", iced::Color::from_rgba(0.80, 0.10, 0.15, 0.45)),
+                ("color-burgundy", iced::Color::from_rgba(0.45, 0.05, 0.25, 0.45)),
+                ("color-purple", iced::Color::from_rgba(0.50, 0.15, 0.65, 0.45)),
+                ("color-orange", iced::Color::from_rgba(0.85, 0.40, 0.05, 0.45)),
+                ("color-navy-blue", iced::Color::from_rgba(0.12, 0.25, 0.65, 0.45)),
+                ("color-charcoal", iced::Color::from_rgba(0.20, 0.20, 0.20, 0.45)),
+                ("color-teal", iced::Color::from_rgba(0.10, 0.50, 0.50, 0.45)),
             ];
 
             let mut bp_items = row![].spacing(4);
-            for (name, col) in bp_presets {
+            for (key, col) in bp_presets {
                 let is_sel = (settings.breakpoint_color.r - col.r).abs() < 0.02
                     && (settings.breakpoint_color.g - col.g).abs() < 0.02
                     && (settings.breakpoint_color.b - col.b).abs() < 0.02;
-                bp_items = bp_items.push(render_syntax_swatch(name, col, is_sel, IdeMessage::SetBreakpointColor(col)));
+                bp_items = bp_items.push(render_syntax_swatch(tr(key), col, is_sel, IdeMessage::SetBreakpointColor(col)));
             }
             let bp_row = bp_items.wrap();
 
             // Execution line presets
             let exec_presets = [
-                ("Green (Default)", iced::Color::from_rgba(0.12, 0.55, 0.20, 0.50)),
-                ("Emerald", iced::Color::from_rgba(0.05, 0.65, 0.40, 0.50)),
-                ("Lime", iced::Color::from_rgba(0.45, 0.70, 0.10, 0.50)),
-                ("Yellow / Gold", iced::Color::from_rgba(0.75, 0.65, 0.10, 0.50)),
-                ("Cyan", iced::Color::from_rgba(0.10, 0.60, 0.75, 0.50)),
-                ("Teal", iced::Color::from_rgba(0.10, 0.50, 0.50, 0.50)),
-                ("Sky Blue", iced::Color::from_rgba(0.20, 0.55, 0.85, 0.50)),
-                ("Purple", iced::Color::from_rgba(0.55, 0.25, 0.75, 0.50)),
+                ("color-green-default", iced::Color::from_rgba(0.12, 0.55, 0.20, 0.50)),
+                ("color-emerald", iced::Color::from_rgba(0.05, 0.65, 0.40, 0.50)),
+                ("color-lime", iced::Color::from_rgba(0.45, 0.70, 0.10, 0.50)),
+                ("color-yellow-gold", iced::Color::from_rgba(0.75, 0.65, 0.10, 0.50)),
+                ("color-cyan", iced::Color::from_rgba(0.10, 0.60, 0.75, 0.50)),
+                ("color-teal", iced::Color::from_rgba(0.10, 0.50, 0.50, 0.50)),
+                ("color-sky-blue", iced::Color::from_rgba(0.20, 0.55, 0.85, 0.50)),
+                ("color-purple", iced::Color::from_rgba(0.55, 0.25, 0.75, 0.50)),
             ];
 
             let mut exec_items = row![].spacing(4);
-            for (name, col) in exec_presets {
+            for (key, col) in exec_presets {
                 let is_sel = (settings.execution_color.r - col.r).abs() < 0.02
                     && (settings.execution_color.g - col.g).abs() < 0.02
                     && (settings.execution_color.b - col.b).abs() < 0.02;
-                exec_items = exec_items.push(render_syntax_swatch(name, col, is_sel, IdeMessage::SetExecutionColor(col)));
+                exec_items = exec_items.push(render_syntax_swatch(tr(key), col, is_sel, IdeMessage::SetExecutionColor(col)));
             }
             let exec_row = exec_items.wrap();
 
@@ -928,7 +950,7 @@ fn render_settings_dialog<'a>(
             let inc_trans = cur_trans.saturating_add(5).min(90);
 
             let trans_box = row![
-                text("Transparency Level:").size(12),
+                text(tr("settings-transparency-label")).size(12),
                 button(text("−").size(12))
                     .on_press(IdeMessage::SetTransparencyPercent(dec_trans))
                     .padding([2, 6])
@@ -952,7 +974,7 @@ fn render_settings_dialog<'a>(
             let auto_trans_btn = button(
                 row![
                     text(if settings.auto_transparency { "☑" } else { "☐" }).size(14),
-                    text("Automatically switch IDE to transparent when debugging (and restore when done)").size(12),
+                    text(tr("settings-auto-transparency")).size(12),
                 ]
                 .spacing(6)
                 .align_y(iced::Center),
@@ -961,22 +983,58 @@ fn render_settings_dialog<'a>(
             .padding([4, 8])
             .style(if settings.auto_transparency { button::primary } else { ide_secondary_button });
 
+            // Interface language selector
+            let mut lang_options: Vec<Option<String>> = vec![None];
+            for tag in crate::i18n::available_languages() {
+                lang_options.push(Some(tag));
+            }
+            if let Some(ref saved) = settings.language {
+                if !lang_options.iter().any(|opt| opt.as_deref() == Some(saved.as_str())) {
+                    lang_options.push(Some(saved.clone()));
+                }
+            }
+            let selected_lang_opt: Option<Option<String>> = Some(settings.language.clone());
+            let auto_label = tr("language-auto");
+            let lang_picker = pick_list(
+                selected_lang_opt,
+                lang_options,
+                move |opt: &Option<String>| match opt {
+                    None => auto_label.clone(),
+                    Some(tag) => crate::i18n::language_display_name(tag),
+                },
+            )
+            .on_select(IdeMessage::SetLanguage)
+            .text_size(12)
+            .width(Length::Fixed(270.0));
+
+            let lang_row = row![
+                text(tr("settings-language-label")).size(12),
+                lang_picker,
+            ]
+            .spacing(8)
+            .align_y(iced::Center);
+
             column![
-                text("Breakpoint Line Color").size(13),
+                text(tr("settings-language-title")).size(13),
+                lang_row,
+                text(tr("settings-language-note")).size(11).style(muted_style),
+                Space::new().height(Length::Fixed(4.0)),
+                dialog_sep(),
+                text(tr("settings-bp-color-title")).size(13),
                 bp_row,
                 Space::new().height(Length::Fixed(4.0)),
-                text("Current Execution Line Color").size(13),
+                text(tr("settings-exec-color-title")).size(13),
                 exec_row,
                 Space::new().height(Length::Fixed(4.0)),
                 dialog_sep(),
                 trans_box,
                 Space::new().height(Length::Fixed(4.0)),
                 dialog_sep(),
-                text("Debugger Automation").size(13),
+                text(tr("settings-debugger-automation-title")).size(13),
                 auto_trans_btn,
                 Space::new().height(Length::Fixed(4.0)),
                 dialog_sep(),
-                text("Default Scripts Location").size(13),
+                text(tr("settings-scripts-dir-title")).size(13),
                 row![
                     container(
                         text(settings.resolved_scripts_dir().to_string_lossy().to_string())
@@ -996,11 +1054,11 @@ fn render_settings_dialog<'a>(
                             ..Default::default()
                         }
                     }),
-                    button(text("📂 Browse...").size(12))
+                    button(text(tr("settings-btn-browse")).size(12))
                         .on_press(IdeMessage::BrowseScriptsDir)
                         .padding([6, 10])
                         .style(button::primary),
-                    button(text("↺ Reset").size(12))
+                    button(text(tr("settings-btn-reset")).size(12))
                         .on_press(IdeMessage::SetScriptsDir(None))
                         .padding([6, 8])
                         .style(ide_secondary_button),
@@ -1039,7 +1097,7 @@ fn render_settings_dialog<'a>(
             let inc_size = cur_size.saturating_add(1).min(72);
 
             let size_box = row![
-                text("Size:").size(12),
+                text(tr("settings-font-size-label")).size(12),
                 button(text("−").size(12))
                     .on_press(IdeMessage::SetEditorFontSize(dec_size))
                     .padding([2, 6])
@@ -1058,13 +1116,13 @@ fn render_settings_dialog<'a>(
             .spacing(3)
             .align_y(iced::Center);
 
-            let reset_font_btn = button(text("↺ Default Font").size(12))
+            let reset_font_btn = button(text(tr("settings-btn-default-font")).size(12))
                 .on_press(IdeMessage::SetEditorFont(None))
                 .padding([4, 8])
                 .style(ide_secondary_button);
 
             let font_row = row![
-                text("Editor Font:").size(12),
+                text(tr("settings-editor-font-label")).size(12),
                 font_picker,
                 size_box,
                 reset_font_btn,
@@ -1096,8 +1154,9 @@ fn render_settings_dialog<'a>(
 
             let is_user_theme = settings.user_themes.iter().any(|t| t.name == selected_theme_name);
 
+            let new_theme_placeholder = tr("settings-theme-new-placeholder");
             let mut theme_row = row![
-                text("Theme:").size(12),
+                text(tr("settings-theme-label")).size(12),
                 pick_list(
                     cur_theme_selected,
                     theme_options,
@@ -1106,13 +1165,13 @@ fn render_settings_dialog<'a>(
                 .on_select(IdeMessage::SelectTheme)
                 .text_size(12)
                 .width(Length::Fixed(190.0)),
-                text_input("New theme name...", new_theme_name)
+                text_input(&new_theme_placeholder, new_theme_name)
                     .on_input(IdeMessage::SetNewThemeName)
                     .on_submit(IdeMessage::SaveCurrentTheme)
                     .padding([4, 6])
                     .size(12)
                     .width(Length::Fixed(150.0)),
-                button(text("💾 Save").size(11))
+                button(text(tr("settings-btn-save")).size(11))
                     .on_press(IdeMessage::SaveCurrentTheme)
                     .padding([4, 8])
                     .style(ide_secondary_button),
@@ -1131,7 +1190,7 @@ fn render_settings_dialog<'a>(
 
             theme_row = theme_row.push(Space::new().width(Fill));
             theme_row = theme_row.push(
-                button(text("↺ Reset All Defaults").size(11))
+                button(text(tr("settings-btn-reset-defaults")).size(11))
                     .on_press(IdeMessage::ResetEditorSyntaxDefaults)
                     .padding([4, 8])
                     .style(button::danger),
@@ -1139,16 +1198,16 @@ fn render_settings_dialog<'a>(
 
             // 3. Syntax Elements List Box & Stacked Sliders Section
             let c = &settings.syntax_colors;
-            let targets: [(&'static str, SyntaxColorTarget, iced::Color); 9] = [
-                ("Editor Background", SyntaxColorTarget::Background, c.background),
-                ("Default Text", SyntaxColorTarget::DefaultText, c.default_text),
-                ("Comments (;)", SyntaxColorTarget::Comment, c.comment),
-                ("Strings (\"...\")", SyntaxColorTarget::StringLiteral, c.string),
-                ("Keywords & Forms", SyntaxColorTarget::Keyword, c.keyword),
-                ("Native Functions", SyntaxColorTarget::BuiltinFunction, c.builtin_function),
-                ("Custom Functions", SyntaxColorTarget::CustomFunction, c.effective_custom_func_color()),
-                ("Numbers", SyntaxColorTarget::Number, c.number),
-                ("Parentheses ()", SyntaxColorTarget::Paren, c.paren),
+            let targets: [(String, SyntaxColorTarget, iced::Color); 9] = [
+                (tr("settings-syntax-bg"), SyntaxColorTarget::Background, c.background),
+                (tr("settings-syntax-default-text"), SyntaxColorTarget::DefaultText, c.default_text),
+                (tr("settings-syntax-comments"), SyntaxColorTarget::Comment, c.comment),
+                (tr("settings-syntax-strings"), SyntaxColorTarget::StringLiteral, c.string),
+                (tr("settings-syntax-keywords"), SyntaxColorTarget::Keyword, c.keyword),
+                (tr("settings-syntax-native-funcs"), SyntaxColorTarget::BuiltinFunction, c.builtin_function),
+                (tr("settings-syntax-custom-funcs"), SyntaxColorTarget::CustomFunction, c.effective_custom_func_color()),
+                (tr("settings-syntax-numbers"), SyntaxColorTarget::Number, c.number),
+                (tr("settings-syntax-parens"), SyntaxColorTarget::Paren, c.paren),
             ];
 
             let mut syntax_items = column![].spacing(2);
@@ -1203,15 +1262,15 @@ fn render_settings_dialog<'a>(
             });
 
             let active_target_name = match active_color_target {
-                SyntaxColorTarget::Background => "Editor Background",
-                SyntaxColorTarget::DefaultText => "Default Text",
-                SyntaxColorTarget::Comment => "Comments",
-                SyntaxColorTarget::StringLiteral => "Strings",
-                SyntaxColorTarget::Keyword => "Keywords & Forms",
-                SyntaxColorTarget::BuiltinFunction => "Native Functions",
-                SyntaxColorTarget::CustomFunction => "User Custom Functions",
-                SyntaxColorTarget::Number => "Numbers",
-                SyntaxColorTarget::Paren => "Parentheses",
+                SyntaxColorTarget::Background => tr("settings-syntax-bg"),
+                SyntaxColorTarget::DefaultText => tr("settings-syntax-default-text"),
+                SyntaxColorTarget::Comment => tr("settings-syntax-comments-short"),
+                SyntaxColorTarget::StringLiteral => tr("settings-syntax-strings-short"),
+                SyntaxColorTarget::Keyword => tr("settings-syntax-keywords"),
+                SyntaxColorTarget::BuiltinFunction => tr("settings-syntax-native-funcs"),
+                SyntaxColorTarget::CustomFunction => tr("settings-syntax-user-custom-funcs"),
+                SyntaxColorTarget::Number => tr("settings-syntax-numbers"),
+                SyntaxColorTarget::Paren => tr("settings-syntax-parens-short"),
             };
 
             let cur_col = settings.get_target_color(active_color_target);
@@ -1232,36 +1291,36 @@ fn render_settings_dialog<'a>(
             };
 
             let curated_palette: &[(&'static str, iced::Color)] = &[
-                ("Base16 Mocha Default", default_target_color),
-                ("Pure White (#FFFFFF)", iced::Color::from_rgb8(0xFF, 0xFF, 0xFF)),
-                ("Soft Cream (#F8F8F2)", iced::Color::from_rgb8(0xF8, 0xF8, 0xF2)),
-                ("Light Gray (#D0C8C6)", iced::Color::from_rgb8(0xD0, 0xC8, 0xC6)),
-                ("Muted Gray (#839496)", iced::Color::from_rgb8(0x83, 0x94, 0x96)),
-                ("Charcoal (#272822)", iced::Color::from_rgb8(0x27, 0x28, 0x22)),
-                ("Mocha BG (#202225)", iced::Color::from_rgb8(0x20, 0x22, 0x25)),
-                ("Pure Black (#000000)", iced::Color::from_rgb8(0x00, 0x00, 0x00)),
-                ("Solarized Dark (#002B36)", iced::Color::from_rgb8(0x00, 0x2B, 0x36)),
-                ("Red / Coral (#FF5555)", iced::Color::from_rgb8(0xFF, 0x55, 0x55)),
-                ("Orange (#FFB86C)", iced::Color::from_rgb8(0xFF, 0xB8, 0x6C)),
-                ("Gold / Yellow (#F1FA8C)", iced::Color::from_rgb8(0xF1, 0xFA, 0x8C)),
-                ("Emerald Green (#50FA7B)", iced::Color::from_rgb8(0x50, 0xFA, 0x7B)),
-                ("Cyan / Teal (#8BE9FD)", iced::Color::from_rgb8(0x8B, 0xE9, 0xFD)),
-                ("Classic Blue (#0000FF)", iced::Color::from_rgb8(0x00, 0x00, 0xFF)),
-                ("Navy (#000080)", iced::Color::from_rgb8(0x00, 0x00, 0x80)),
-                ("Sky Blue (#82AAFF)", iced::Color::from_rgb8(0x82, 0xAA, 0xFF)),
-                ("Purple / Lavender (#BD93F9)", iced::Color::from_rgb8(0xBD, 0x93, 0xF9)),
-                ("Magenta (#FF79C6)", iced::Color::from_rgb8(0xFF, 0x79, 0xC6)),
-                ("Classic Purple (#800080)", iced::Color::from_rgb8(0x80, 0x00, 0x80)),
-                ("Sienna Brown (#A0522D)", iced::Color::from_rgb8(0xA0, 0x52, 0x2D)),
+                ("color-mocha-default", default_target_color),
+                ("color-pure-white", iced::Color::from_rgb8(0xFF, 0xFF, 0xFF)),
+                ("color-soft-cream", iced::Color::from_rgb8(0xF8, 0xF8, 0xF2)),
+                ("color-light-gray", iced::Color::from_rgb8(0xD0, 0xC8, 0xC6)),
+                ("color-muted-gray", iced::Color::from_rgb8(0x83, 0x94, 0x96)),
+                ("color-charcoal-hex", iced::Color::from_rgb8(0x27, 0x28, 0x22)),
+                ("color-mocha-bg", iced::Color::from_rgb8(0x20, 0x22, 0x25)),
+                ("color-pure-black", iced::Color::from_rgb8(0x00, 0x00, 0x00)),
+                ("color-solarized-dark", iced::Color::from_rgb8(0x00, 0x2B, 0x36)),
+                ("color-red-coral", iced::Color::from_rgb8(0xFF, 0x55, 0x55)),
+                ("color-orange-hex", iced::Color::from_rgb8(0xFF, 0xB8, 0x6C)),
+                ("color-gold-yellow", iced::Color::from_rgb8(0xF1, 0xFA, 0x8C)),
+                ("color-emerald-green", iced::Color::from_rgb8(0x50, 0xFA, 0x7B)),
+                ("color-cyan-teal", iced::Color::from_rgb8(0x8B, 0xE9, 0xFD)),
+                ("color-classic-blue", iced::Color::from_rgb8(0x00, 0x00, 0xFF)),
+                ("color-navy-hex", iced::Color::from_rgb8(0x00, 0x00, 0x80)),
+                ("color-sky-blue-hex", iced::Color::from_rgb8(0x82, 0xAA, 0xFF)),
+                ("color-purple-lavender", iced::Color::from_rgb8(0xBD, 0x93, 0xF9)),
+                ("color-magenta", iced::Color::from_rgb8(0xFF, 0x79, 0xC6)),
+                ("color-classic-purple", iced::Color::from_rgb8(0x80, 0x00, 0x80)),
+                ("color-sienna-brown", iced::Color::from_rgb8(0xA0, 0x52, 0x2D)),
             ];
 
             let mut swatch_row = row![].spacing(3);
-            for (lbl, col) in curated_palette {
+            for (key, col) in curated_palette {
                 let is_sel = (cur_col.r - col.r).abs() < 0.02
                     && (cur_col.g - col.g).abs() < 0.02
                     && (cur_col.b - col.b).abs() < 0.02;
                 swatch_row = swatch_row.push(render_syntax_swatch(
-                    lbl,
+                    tr(key),
                     *col,
                     is_sel,
                     IdeMessage::SetSyntaxColor(active_color_target, *col),
@@ -1270,14 +1329,14 @@ fn render_settings_dialog<'a>(
             let swatches_wrapped = swatch_row.wrap();
 
             let hex_rgb_row = row![
-                text("Hex:").size(12),
+                text(tr("settings-hex-label")).size(12),
                 text_input("#RRGGBB", syntax_hex_input)
                     .on_input(IdeMessage::SetSyntaxHexInput)
                     .on_submit(IdeMessage::ApplySyntaxHexInput)
                     .padding([3, 6])
                     .size(12)
                     .width(Length::Fixed(85.0)),
-                button(text("Apply").size(11))
+                button(text(tr("settings-btn-apply")).size(11))
                     .on_press(IdeMessage::ApplySyntaxHexInput)
                     .padding([3, 8])
                     .style(ide_secondary_button),
@@ -1318,17 +1377,17 @@ fn render_settings_dialog<'a>(
             .spacing(3);
 
             let color_adjuster_column = column![
-                text(format!("Adjust Color: {active_target_name}")).size(12),
+                text(tr_args("settings-adjust-color", &[("target", active_target_name.as_str().into())])).size(12),
                 rgb_sliders_column,
                 hex_rgb_row,
-                text("Quick Palette:").size(11).style(muted_style),
+                text(tr("settings-quick-palette")).size(11).style(muted_style),
                 swatches_wrapped,
             ]
             .spacing(5);
 
             let syntax_middle_section = row![
                 column![
-                    text("Syntax Elements").size(12),
+                    text(tr("settings-syntax-elements-title")).size(12),
                     syntax_list_box,
                 ]
                 .spacing(4),
@@ -1340,7 +1399,7 @@ fn render_settings_dialog<'a>(
             let mut func_items = column![].spacing(2);
             if settings.custom_functions.is_empty() {
                 func_items = func_items.push(
-                    container(text("No custom functions added yet.").size(11).style(muted_style))
+                    container(text(tr("settings-custom-funcs-empty")).size(11).style(muted_style))
                         .padding([6, 8])
                 );
             } else {
@@ -1383,14 +1442,15 @@ fn render_settings_dialog<'a>(
                 ..Default::default()
             });
 
+            let custom_func_placeholder = tr("settings-custom-funcs-placeholder");
             let add_row = row![
-                text_input("New function name...", new_custom_func_input)
+                text_input(&custom_func_placeholder, new_custom_func_input)
                     .on_input(IdeMessage::SetNewCustomFunctionInput)
                     .on_submit(IdeMessage::AddCustomFunction)
                     .padding([4, 6])
                     .size(12)
                     .width(Length::Fixed(180.0)),
-                button(text("+ Add").size(11))
+                button(text(tr("settings-btn-add")).size(11))
                     .on_press(IdeMessage::AddCustomFunction)
                     .padding([4, 10])
                     .style(button::primary),
@@ -1399,7 +1459,7 @@ fn render_settings_dialog<'a>(
             .align_y(iced::Center);
 
             let remove_btn = {
-                let mut btn = button(text("− Remove").size(11))
+                let mut btn = button(text(tr("settings-btn-remove")).size(11))
                     .padding([4, 10]);
                 if selected_custom_func.is_some() {
                     btn = btn.on_press(IdeMessage::RemoveCustomFunction).style(button::danger);
@@ -1412,20 +1472,20 @@ fn render_settings_dialog<'a>(
             let remove_row = row![
                 remove_btn,
                 if let Some(sel) = selected_custom_func {
-                    text(format!("Selected: {sel}")).size(11).style(muted_style)
+                    text(tr_args("settings-custom-funcs-selected", &[("name", sel.into())])).size(11).style(muted_style)
                 } else {
-                    text("Select an item in list to remove").size(11).style(muted_style)
+                    text(tr("settings-custom-funcs-select-hint")).size(11).style(muted_style)
                 }
             ]
             .spacing(8)
             .align_y(iced::Center);
 
             let color_mode_row = row![
-                text("Color Mode:").size(12),
+                text(tr("settings-color-mode-label")).size(12),
                 button(
                     row![
                         text(if settings.custom_function_use_native_color { "● " } else { "○ " }).size(12),
-                        text("Same as Native").size(12),
+                        text(tr("settings-color-mode-native")).size(12),
                     ]
                     .spacing(4)
                     .align_y(iced::Center)
@@ -1436,7 +1496,7 @@ fn render_settings_dialog<'a>(
                 button(
                     row![
                         text(if !settings.custom_function_use_native_color { "● " } else { "○ " }).size(12),
-                        text("Dedicated Custom Color").size(12),
+                        text(tr("settings-color-mode-dedicated")).size(12),
                     ]
                     .spacing(4)
                     .align_y(iced::Center)
@@ -1462,7 +1522,7 @@ fn render_settings_dialog<'a>(
             .align_y(iced::Center);
 
             let custom_controls = column![
-                text("Manage Function Names:").size(11).style(muted_style),
+                text(tr("settings-manage-func-names")).size(11).style(muted_style),
                 add_row,
                 remove_row,
                 Space::new().height(Length::Fixed(2.0)),
@@ -1471,7 +1531,7 @@ fn render_settings_dialog<'a>(
             .spacing(6);
 
             let custom_funcs_section = column![
-                text("User Custom Functions").size(13),
+                text(tr("settings-syntax-user-custom-funcs")).size(13),
                 row![func_list_box, custom_controls].spacing(16),
             ]
             .spacing(6);
@@ -1559,7 +1619,7 @@ fn render_settings_dialog<'a>(
                 dialog_sep(),
                 custom_funcs_section,
                 dialog_sep(),
-                text("Live Syntax Preview").size(13),
+                text(tr("settings-live-preview-title")).size(13),
                 preview_box,
             ]
             .spacing(8)
@@ -1571,7 +1631,7 @@ fn render_settings_dialog<'a>(
             // 1. Indent Size selector
             let indent_sizes = [2usize, 3, 4];
             let mut indent_row = row![
-                text("Indentation Size:").size(12),
+                text(tr("settings-indent-label")).size(12),
             ]
             .spacing(6)
             .align_y(iced::Center);
@@ -1579,11 +1639,11 @@ fn render_settings_dialog<'a>(
             for size in indent_sizes {
                 let is_sel = opts.indent_size == size;
                 let lbl = if size == 2 {
-                    "2 spaces (default)"
+                    tr("settings-indent-2")
                 } else if size == 3 {
-                    "3 spaces"
+                    tr("settings-indent-3")
                 } else {
-                    "4 spaces"
+                    tr("settings-indent-4")
                 };
                 let btn = button(
                     row![
@@ -1603,7 +1663,7 @@ fn render_settings_dialog<'a>(
             let downcase_btn = button(
                 row![
                     text(if opts.downcase_builtins { "☑" } else { "☐" }).size(14),
-                    text("Convert built-in keywords and functions to lowercase (defun, setq, getpoint, princ, etc.)").size(12),
+                    text(tr("settings-downcase-label")).size(12),
                 ]
                 .spacing(6)
                 .align_y(iced::Center),
@@ -1612,9 +1672,7 @@ fn render_settings_dialog<'a>(
             .padding([4, 8])
             .style(if opts.downcase_builtins { button::primary } else { ide_secondary_button });
 
-            let downcase_note = text(
-                "Standardizes language keywords and built-in functions to lowercase, and boolean constants to T and nil, while preserving original casing for user variables and strings."
-            )
+            let downcase_note = text(tr("settings-downcase-note"))
             .size(11)
             .style(muted_style);
 
@@ -1622,7 +1680,7 @@ fn render_settings_dialog<'a>(
             let wide_btn = button(
                 row![
                     text(if opts.wide_style_calls { "☑" } else { "☐" }).size(14),
-                    text("Wide Style: Align multi-line function call arguments under the first argument").size(12),
+                    text(tr("settings-wide-label")).size(12),
                 ]
                 .spacing(6)
                 .align_y(iced::Center),
@@ -1631,9 +1689,7 @@ fn render_settings_dialog<'a>(
             .padding([4, 8])
             .style(if opts.wide_style_calls { button::primary } else { ide_secondary_button });
 
-            let wide_note = text(
-                "For regular function calls like (command \"_.LINE\" ...) or (strcat ...), subsequent lines align vertically under the first argument on line 1."
-            )
+            let wide_note = text(tr("settings-wide-note"))
             .size(11)
             .style(muted_style);
 
@@ -1641,7 +1697,7 @@ fn render_settings_dialog<'a>(
             let align_setq_btn = button(
                 row![
                     text(if opts.align_setq_pairs { "☑" } else { "☐" }).size(14),
-                    text("Align variable-value pairs in (setq ...) blocks").size(12),
+                    text(tr("settings-align-setq-label")).size(12),
                 ]
                 .spacing(6)
                 .align_y(iced::Center),
@@ -1650,9 +1706,7 @@ fn render_settings_dialog<'a>(
             .padding([4, 8])
             .style(if opts.align_setq_pairs { button::primary } else { ide_secondary_button });
 
-            let align_setq_note = text(
-                "In multi-line (setq ...) assignments, subsequent variable names align vertically under the first variable."
-            )
+            let align_setq_note = text(tr("settings-align-setq-note"))
             .size(11)
             .style(muted_style);
 
@@ -1660,7 +1714,7 @@ fn render_settings_dialog<'a>(
             let reflow_btn = button(
                 row![
                     text(if opts.structural_reflow { "☑" } else { "☐" }).size(14),
-                    text("Structural Re-flow: Move expressions between lines (classic LISP breaks & joins)").size(12),
+                    text(tr("settings-reflow-label")).size(12),
                 ]
                 .spacing(6)
                 .align_y(iced::Center),
@@ -1669,16 +1723,14 @@ fn render_settings_dialog<'a>(
             .padding([4, 8])
             .style(if opts.structural_reflow { button::primary } else { ide_secondary_button });
 
-            let reflow_note = text(
-                "Expands defun bodies, progn, while/repeat loops, multi-pair setq, and cond clauses onto separate lines; condenses fragmented atoms/parentheses into single lines."
-            )
+            let reflow_note = text(tr("settings-reflow-note"))
             .size(11)
             .style(muted_style);
 
             // 6. Actions & Shortcuts Info Box
             let format_doc_btn = button(
                 row![
-                    text("⚡ Format Active Document Now").size(12),
+                    text(tr("settings-btn-format-now")).size(12),
                 ]
                 .align_y(iced::Center),
             )
@@ -1687,33 +1739,33 @@ fn render_settings_dialog<'a>(
             .style(button::primary);
 
             let shortcuts_info = column![
-                text("Keyboard & Context Shortcuts:").size(12),
+                text(tr("settings-shortcuts-title")).size(12),
                 row![
-                    text("• Format Entire Document:").size(11).style(muted_style),
-                    text(" Shift+Alt+F  or  Ctrl+Alt+F (default)").size(11),
+                    text(tr("settings-shortcut-format-doc-label")).size(11).style(muted_style),
+                    text(format!(" {}", tr("settings-shortcut-format-doc-keys"))).size(11),
                 ]
                 .spacing(4),
                 row![
-                    text("• Format Selection:").size(11).style(muted_style),
-                    text(" Ctrl+Shift+F  or  Right-Click → Format Selection").size(11),
+                    text(tr("settings-shortcut-format-sel-label")).size(11).style(muted_style),
+                    text(format!(" {}", tr("settings-shortcut-format-sel-keys"))).size(11),
                 ]
                 .spacing(4),
                 row![
-                    text("• Smart Indent on Enter:").size(11).style(muted_style),
-                    text(" Enter automatically computes indentation based on current rules").size(11),
+                    text(tr("settings-shortcut-smart-enter-label")).size(11).style(muted_style),
+                    text(format!(" {}", tr("settings-shortcut-smart-enter-desc"))).size(11),
                 ]
                 .spacing(4),
                 row![
-                    text("• Comments:").size(11).style(muted_style),
-                    text(" ;;; stays at column 0  |  ;; aligns to code block").size(11),
+                    text(tr("settings-shortcut-comments-label")).size(11).style(muted_style),
+                    text(format!(" {}", tr("settings-shortcut-comments-desc"))).size(11),
                 ]
                 .spacing(4),
             ]
             .spacing(4);
 
             column![
-                text("OpenCAD LISP Formatting Guidelines").size(13),
-                text("Configure automatic indentation, symbol casing, and alignment rules matching classic LISP and standard CAD specifications.").size(11).style(muted_style),
+                text(tr("settings-formatting-title")).size(13),
+                text(tr("settings-formatting-subtitle")).size(11).style(muted_style),
                 Space::new().height(Length::Fixed(4.0)),
                 dialog_sep(),
                 indent_row,
@@ -1851,7 +1903,7 @@ fn render_ide_layout<'a>(
                 .on_press(IdeMessage::DebugContinue)
                 .padding([6, 12])
                 .style(button::primary),
-            "Continue (F5)",
+            tr("toolbar-continue-tip"),
         );
 
         let btn_step_over = ide_tooltip(
@@ -1859,7 +1911,7 @@ fn render_ide_layout<'a>(
                 .on_press(IdeMessage::DebugStepOver)
                 .padding([6, 12])
                 .style(ide_secondary_button),
-            "Step Over (F10)",
+            tr("toolbar-step-over-tip"),
         );
 
         let btn_step_into = ide_tooltip(
@@ -1867,7 +1919,7 @@ fn render_ide_layout<'a>(
                 .on_press(IdeMessage::DebugStepInto)
                 .padding([6, 12])
                 .style(ide_secondary_button),
-            "Step Into (F11)",
+            tr("toolbar-step-into-tip"),
         );
 
         let btn_step_out = ide_tooltip(
@@ -1875,7 +1927,7 @@ fn render_ide_layout<'a>(
                 .on_press(IdeMessage::DebugStepOut)
                 .padding([6, 12])
                 .style(ide_secondary_button),
-            "Step Out (Shift+F11)",
+            tr("toolbar-step-out-tip"),
         );
 
         let btn_restart = ide_tooltip(
@@ -1883,7 +1935,7 @@ fn render_ide_layout<'a>(
                 .on_press(IdeMessage::DebugRestart)
                 .padding([6, 12])
                 .style(ide_secondary_button),
-            "Restart (Ctrl+Shift+F5)",
+            tr("toolbar-restart-tip"),
         );
 
         let btn_stop = ide_tooltip(
@@ -1891,7 +1943,7 @@ fn render_ide_layout<'a>(
                 .on_press(IdeMessage::DebugStop)
                 .padding([6, 12])
                 .style(button::danger),
-            "Stop (Shift+F5)",
+            tr("toolbar-stop-tip"),
         );
 
         toolbar_items = toolbar_items
@@ -1901,7 +1953,7 @@ fn render_ide_layout<'a>(
             .push(btn_step_out)
             .push(btn_restart)
             .push(btn_stop)
-            .push(text("● DEBUGGING").size(13).style(primary_style))
+            .push(text(tr("toolbar-debugging-badge")).size(13).style(primary_style))
             .push(vsep());
     } else {
         let btn_run_all = ide_tooltip(
@@ -1909,7 +1961,7 @@ fn render_ide_layout<'a>(
                 .on_press(IdeMessage::RunAll)
                 .padding([6, 14])
                 .style(button::primary),
-            "Load Script (F5)",
+            tr("toolbar-load-script-tip"),
         );
 
         let btn_run_sel = ide_tooltip(
@@ -1917,7 +1969,7 @@ fn render_ide_layout<'a>(
                 .on_press(IdeMessage::RunSelection)
                 .padding([6, 12])
                 .style(ide_secondary_button),
-            "Load Selection (F8)",
+            tr("toolbar-load-selection-tip"),
         );
 
         let btn_debug = ide_tooltip(
@@ -1934,7 +1986,7 @@ fn render_ide_layout<'a>(
             .on_press(IdeMessage::DebugStart)
             .padding([6, 12])
             .style(ide_secondary_button),
-            "Start Debugging",
+            tr("toolbar-start-debugging-tip"),
         );
 
         let btn_step_over = ide_tooltip(
@@ -1942,7 +1994,7 @@ fn render_ide_layout<'a>(
                 .on_press(IdeMessage::DebugStartStep)
                 .padding([6, 12])
                 .style(ide_secondary_button),
-            "Step Over (F10)",
+            tr("toolbar-step-over-tip"),
         );
 
         let btn_step_into = ide_tooltip(
@@ -1950,7 +2002,7 @@ fn render_ide_layout<'a>(
                 .on_press(IdeMessage::DebugStartStep)
                 .padding([6, 12])
                 .style(ide_secondary_button),
-            "Step Into (F11)",
+            tr("toolbar-step-into-tip"),
         );
 
         let btn_restart = ide_tooltip(
@@ -1958,7 +2010,7 @@ fn render_ide_layout<'a>(
                 .on_press(IdeMessage::DebugRestart)
                 .padding([6, 12])
                 .style(ide_secondary_button),
-            "Restart / Re-run (Ctrl+Shift+F5)",
+            tr("toolbar-restart-rerun-tip"),
         );
 
         toolbar_items = toolbar_items
@@ -1976,31 +2028,31 @@ fn render_ide_layout<'a>(
             .on_press(IdeMessage::NewTab)
             .padding([6, 12])
             .style(ide_secondary_button),
-        "New Script Tab",
+        tr("toolbar-new-tab-tip"),
     );
 
     let btn_open = ide_tooltip(
-        button(text("Open").size(14))
+        button(text(tr("toolbar-open")).size(14))
             .on_press(IdeMessage::OpenFile)
             .padding([6, 12])
             .style(ide_secondary_button),
-        "Open Script File",
+        tr("toolbar-open-tip"),
     );
 
     let btn_save = ide_tooltip(
-        button(text("Save").size(14))
+        button(text(tr("toolbar-save")).size(14))
             .on_press(IdeMessage::SaveTab)
             .padding([6, 12])
             .style(ide_secondary_button),
-        "Save Script File (Ctrl+S)",
+        tr("toolbar-save-tip"),
     );
 
     let btn_save_as = ide_tooltip(
-        button(text("Save As...").size(14))
+        button(text(tr("toolbar-save-as")).size(14))
             .on_press(IdeMessage::SaveTabAs)
             .padding([6, 12])
             .style(ide_secondary_button),
-        "Save Script As New File (Ctrl+Shift+S)",
+        tr("toolbar-save-as-tip"),
     );
 
     let btn_undo = ide_tooltip(
@@ -2008,7 +2060,7 @@ fn render_ide_layout<'a>(
             .on_press(IdeMessage::Undo)
             .padding([6, 10])
             .style(ide_secondary_button),
-        "Undo (Ctrl+Z)",
+        tr("toolbar-undo-tip"),
     );
 
     let btn_redo = ide_tooltip(
@@ -2016,7 +2068,7 @@ fn render_ide_layout<'a>(
             .on_press(IdeMessage::Redo)
             .padding([6, 10])
             .style(ide_secondary_button),
-        "Redo (Ctrl+Y / Ctrl+Shift+Z)",
+        tr("toolbar-redo-tip"),
     );
 
     let has_tab_selection = tabs.get(active_tab).map_or(false, |t| {
@@ -2024,7 +2076,7 @@ fn render_ide_layout<'a>(
     });
 
     let btn_format = ide_tooltip(
-        button(text("Format").size(14))
+        button(text(tr("toolbar-format")).size(14))
             .on_press(if has_tab_selection {
                 IdeMessage::FormatSelection
             } else {
@@ -2032,14 +2084,14 @@ fn render_ide_layout<'a>(
             })
             .padding([6, 12])
             .style(ide_secondary_button),
-        "Format OpenCAD LISP Document (Shift+Alt+F) | Selection (Ctrl+Shift+F)",
+        tr("toolbar-format-tip"),
     );
 
     let btn_find = ide_tooltip(
         button(
             row![
                 text("🔍").size(13),
-                text("Find").size(14),
+                text(tr("toolbar-find")).size(14),
             ]
             .spacing(4)
             .align_y(iced::Center),
@@ -2051,14 +2103,14 @@ fn render_ide_layout<'a>(
         } else {
             ide_secondary_button
         }),
-        "Find (Ctrl+F) | Replace (Ctrl+H)",
+        tr("toolbar-find-tip"),
     );
 
     let btn_variables = ide_tooltip(
         button(
             row![
                 text(if variables_open { "▾" } else { "▸" }).size(12),
-                text("Variables").size(14),
+                text(tr("toolbar-variables")).size(14),
             ]
             .spacing(4)
             .align_y(iced::Center),
@@ -2070,14 +2122,14 @@ fn render_ide_layout<'a>(
         } else {
             ide_secondary_button
         }),
-        "Toggle Variables Panel",
+        tr("toolbar-variables-tip"),
     );
 
     let btn_api_drawer = ide_tooltip(
         button(
             row![
                 text(if api_drawer_open { "◀" } else { "▶" }).size(12),
-                text("λ Function List").size(14),
+                text(tr("toolbar-function-list")).size(14),
             ]
             .spacing(4)
             .align_y(iced::Center),
@@ -2089,15 +2141,15 @@ fn render_ide_layout<'a>(
         } else {
             ide_secondary_button
         }),
-        "Toggle OpenCAD LISP Function List & Reference (F2)",
+        tr("toolbar-function-list-tip"),
     );
 
     let btn_clear = ide_tooltip(
-        button(text("Clear Output").size(13))
+        button(text(tr("toolbar-clear-output")).size(13))
             .on_press(IdeMessage::ClearConsole)
             .padding([6, 10])
             .style(button::text),
-        "Clear Output Console",
+        tr("toolbar-clear-output-tip"),
     );
 
     let switch_to_cad_btn = if is_standalone_window {
@@ -2105,7 +2157,7 @@ fn render_ide_layout<'a>(
             button(
                 row![
                     text("⮂").size(14),
-                    text("Switch to CAD").size(14),
+                    text(tr("toolbar-switch-to-cad")).size(14),
                 ]
                 .spacing(4)
                 .align_y(iced::Center),
@@ -2135,14 +2187,14 @@ fn render_ide_layout<'a>(
         } else {
             ide_secondary_button
         }),
-        "Toggle Window Transparency",
+        tr("toolbar-transparency-tip"),
     );
 
     let btn_settings = ide_tooltip(
         button(
             row![
                 text("⚙").size(14),
-                text("Settings").size(13),
+                text(tr("toolbar-settings")).size(13),
             ]
             .spacing(4)
             .align_y(iced::Center),
@@ -2154,14 +2206,14 @@ fn render_ide_layout<'a>(
         } else {
             ide_secondary_button
         }),
-        "Open IDE Settings",
+        tr("toolbar-settings-tip"),
     );
 
     let btn_help = ide_tooltip(
         button(
             row![
                 text("?").size(14),
-                text("Help ▾").size(13),
+                text(tr("toolbar-help")).size(13),
             ]
             .spacing(4)
             .align_y(iced::Center),
@@ -2173,7 +2225,7 @@ fn render_ide_layout<'a>(
         } else {
             ide_secondary_button
         }),
-        "Help & Tutorials",
+        tr("toolbar-help-tip"),
     );
 
     toolbar_items = toolbar_items
@@ -2257,16 +2309,22 @@ fn render_ide_layout<'a>(
         let status = if is_debugging {
             if let Some((sl, sc, _el, _ec)) = current.debug_paused_span {
                 let expr_preview = current.debug_paused_expr.as_deref().unwrap_or("");
-                format!(
-                    "▶ PAUSED at Ln {sl}, Col {sc} {expr_preview}  |  F5: Continue  |  F10: Step Over  |  F11: Step Into  |  Shift+F11: Step Out  |  Shift+F5: Stop  |  {bp_count} breakpoint(s)"
+                tr_args(
+                    "status-paused-span",
+                    &[
+                        ("line", sl.into()),
+                        ("col", sc.into()),
+                        ("expr", expr_preview.into()),
+                        ("count", bp_count.into()),
+                    ],
                 )
             } else if let Some(pline) = current.debug_paused_line {
-                format!(
-                    "▶ PAUSED at Line {}  |  F5: Continue  |  F10: Step Over  |  F11: Step Into  |  Shift+F11: Step Out  |  Shift+F5: Stop  |  {} breakpoint(s)",
-                    pline, bp_count
+                tr_args(
+                    "status-paused-line",
+                    &[("line", pline.into()), ("count", bp_count.into())],
                 )
             } else {
-                format!("🐞 DEBUGGING active  |  {} breakpoint(s) (F9: Toggle BP)", bp_count)
+                tr_args("status-debugging-active", &[("count", bp_count.into())])
             }
         } else {
             let bps_info = if bp_count > 0 {
@@ -2275,16 +2333,19 @@ fn render_ide_layout<'a>(
                     .iter()
                     .map(|bp| format!("{}:{}", bp.line, bp.col))
                     .collect();
-                format!("Breakpoints: [{}]", formatted.join(", "))
+                let list_str = formatted.join(", ");
+                tr_args("status-breakpoints-list", &[("list", list_str.as_str().into())])
             } else {
-                "No breakpoints".to_string()
+                tr("status-no-breakpoints")
             };
-            format!(
-                "Ln {}, Col {}  |  {} lines  |  {}  |  OpenCAD LISP  |  F5: Run, F9: Breakpoint, Shift+Alt+F: Format",
-                cursor.position.line + 1,
-                cursor.position.column + 1,
-                total_lines,
-                bps_info
+            tr_args(
+                "status-ready",
+                &[
+                    ("line", (cursor.position.line + 1).into()),
+                    ("col", (cursor.position.column + 1).into()),
+                    ("lines", total_lines.into()),
+                    ("bps", bps_info.as_str().into()),
+                ],
             )
         };
 
@@ -3055,13 +3116,13 @@ fn render_ide_layout<'a>(
         )
     } else {
         (
-            container(text("No open file").size(13).style(muted_style))
+            container(text(tr("editor-no-open-file")).size(13).style(muted_style))
                 .height(Fill)
                 .width(Fill)
                 .center_x(Fill)
                 .center_y(Fill)
                 .into(),
-            "No active file".to_string(),
+            tr("editor-no-active-file"),
         )
     };
 
@@ -3128,9 +3189,9 @@ fn render_ide_layout<'a>(
 
     let is_repl_lisp = repl_mode == crate::ide::protocol::ReplMode::Lisp;
     let (prompt_str, placeholder_str, _syntax_hl) = if is_repl_lisp {
-        ("LISP>", "OpenCAD LISP code / expression (e.g. (+ 1 2) or (getpoint) - Enter to run, Ctrl+Enter for newline)...", "lisp")
+        ("LISP>", tr("repl-placeholder-lisp"), "lisp")
     } else {
-        (">>>", "Python code / expression (Enter to run, Ctrl+Enter for newline)...", "py")
+        (">>>", tr("repl-placeholder-python"), "py")
     };
 
     let repl_lisp_settings = crate::ide::highlight::LispHighlightSettings {
@@ -3240,7 +3301,7 @@ fn render_ide_layout<'a>(
         button(
             row![
                 text("▶").size(9),
-                text("Run").size(11),
+                text(tr("repl-btn-run")).size(11),
             ]
             .spacing(3)
             .align_y(iced::Center),
@@ -3249,18 +3310,18 @@ fn render_ide_layout<'a>(
         .padding([2, 6])
         .style(button::primary),
         if is_repl_lisp {
-            "Run OpenCAD LISP Code (Enter to run, Ctrl+Enter for newline)"
+            tr("repl-btn-run-lisp-tip")
         } else {
-            "Run Python Code (Enter to run, Ctrl+Enter for newline)"
+            tr("repl-btn-run-python-tip")
         },
     );
 
     let repl_clear_btn = ide_tooltip(
-        button(text("Clear").size(10))
+        button(text(tr("repl-btn-clear")).size(10))
             .on_press(IdeMessage::ReplClear)
             .padding([2, 6])
             .style(button::text),
-        "Clear REPL Input",
+        tr("repl-btn-clear-tip"),
     );
 
     let repl_actions = column![
@@ -3272,9 +3333,9 @@ fn render_ide_layout<'a>(
 
     let console_pane = column![
         row![
-            text("Console / Output").size(11).style(primary_style),
+            text(tr("console-title")).size(11).style(primary_style),
             Space::new().width(Fill),
-            text("Interactive OpenCAD LISP REPL (Enter to run, Ctrl+Enter for newline)").size(10).style(muted_style),
+            text(tr("console-repl-hint")).size(10).style(muted_style),
         ]
         .spacing(6)
         .align_y(iced::Center),
@@ -3322,15 +3383,15 @@ fn render_ide_layout<'a>(
     let variables_drawer: Option<Element<'a, IdeMessage>> = if variables_open {
         let mut watch_list = column![].spacing(3);
         let mut header_row = row![
-            text("Expression").size(13).style(primary_style).width(Length::Fixed(95.0)),
-            text("Value").size(13).style(primary_style).width(Fill),
+            text(tr("debug-col-expression")).size(13).style(primary_style).width(Length::Fixed(95.0)),
+            text(tr("debug-col-value")).size(13).style(primary_style).width(Fill),
         ]
         .spacing(4)
         .align_y(iced::Center);
 
         if !watch_vars.is_empty() {
             header_row = header_row.push(
-                button(text("Clear").size(12))
+                button(text(tr("debug-btn-clear")).size(12))
                     .on_press(IdeMessage::ClearWatch)
                     .padding([1, 4])
                     .style(button::text),
@@ -3341,7 +3402,7 @@ fn render_ide_layout<'a>(
 
         if watch_vars.is_empty() {
             watch_list = watch_list.push(
-                text("No watch expressions (Right-click or Shift+F9 on variable)")
+                text(tr("debug-watch-empty"))
                     .size(12)
                     .style(muted_style),
             );
@@ -3350,9 +3411,9 @@ fn render_ide_layout<'a>(
                 let (val_str, type_str, in_scope) = if let Some((_, typ, val)) = debug_locals.iter().find(|(n, _, _)| n.eq_ignore_ascii_case(var_name)) {
                     (val.clone(), typ.clone(), true)
                 } else if is_debugging {
-                    ("<not in scope>".to_string(), String::new(), false)
+                    (tr("debug-not-in-scope"), String::new(), false)
                 } else {
-                    ("<not debugging>".to_string(), String::new(), false)
+                    (tr("debug-not-debugging"), String::new(), false)
                 };
 
                 let mut val_col = column![
@@ -3394,9 +3455,9 @@ fn render_ide_layout<'a>(
         let mut vars_list = column![].spacing(3);
         vars_list = vars_list.push(
             row![
-                text("Name").size(13).style(primary_style).width(Length::Fixed(95.0)),
-                text("Type").size(13).style(primary_style).width(Length::Fixed(80.0)),
-                text("Value").size(13).style(primary_style).width(Fill),
+                text(tr("debug-col-name")).size(13).style(primary_style).width(Length::Fixed(95.0)),
+                text(tr("debug-col-type")).size(13).style(primary_style).width(Length::Fixed(80.0)),
+                text(tr("debug-col-value")).size(13).style(primary_style).width(Fill),
             ]
             .spacing(6)
             .align_y(iced::Center),
@@ -3405,7 +3466,7 @@ fn render_ide_layout<'a>(
 
         if debug_locals.is_empty() {
             vars_list = vars_list.push(
-                text(if is_debugging { "No local variables in frame" } else { "Start debugging to inspect variables" })
+                text(if is_debugging { tr("debug-locals-empty-debugging") } else { tr("debug-locals-empty-idle") })
                     .size(13)
                     .style(muted_style),
             );
@@ -3435,9 +3496,9 @@ fn render_ide_layout<'a>(
         let mut stack_list = column![].spacing(3);
         stack_list = stack_list.push(
             row![
-                text("Function").size(13).style(primary_style).width(Length::Fixed(105.0)),
-                text("Line").size(13).style(primary_style).width(Length::Fixed(48.0)),
-                text("File").size(13).style(primary_style).width(Fill),
+                text(tr("debug-col-function")).size(13).style(primary_style).width(Length::Fixed(105.0)),
+                text(tr("debug-col-line")).size(13).style(primary_style).width(Length::Fixed(48.0)),
+                text(tr("debug-col-file")).size(13).style(primary_style).width(Fill),
             ]
             .spacing(6)
             .align_y(iced::Center),
@@ -3446,7 +3507,7 @@ fn render_ide_layout<'a>(
 
         if debug_stack.is_empty() {
             stack_list = stack_list.push(
-                text(if is_debugging { "Call stack empty" } else { "No active call stack" })
+                text(if is_debugging { tr("debug-stack-empty-debugging") } else { tr("debug-stack-empty-idle") })
                     .size(13)
                     .style(muted_style),
             );
@@ -3481,7 +3542,7 @@ fn render_ide_layout<'a>(
         if let Some(tab) = tabs.get(active_tab) {
             if tab.breakpoints.is_empty() {
                 bps_list = bps_list.push(
-                    text("No breakpoints set (Press F9 on '(' or S-expr)")
+                    text(tr("debug-breakpoints-empty"))
                         .size(12)
                         .style(muted_style),
                 );
@@ -3525,7 +3586,7 @@ fn render_ide_layout<'a>(
         let panel = container(
             column![
                 row![
-                    text("Debug Inspector").size(15).style(primary_style),
+                    text(tr("debug-inspector-title")).size(15).style(primary_style),
                     Space::new().width(Fill),
                     button(text("✕").size(12))
                         .on_press(IdeMessage::ToggleVariables)
@@ -3534,16 +3595,16 @@ fn render_ide_layout<'a>(
                 ]
                 .align_y(iced::Center),
                 hsep(),
-                text("Watch Expressions").size(14).style(primary_style),
+                text(tr("debug-watch-title")).size(14).style(primary_style),
                 scrollable(watch_list).height(Length::FillPortion(2)),
                 hsep(),
-                text("Local Variables").size(14).style(primary_style),
+                text(tr("debug-locals-title")).size(14).style(primary_style),
                 scrollable(vars_list).height(Length::FillPortion(2)),
                 hsep(),
-                text("Call Stack").size(14).style(primary_style),
+                text(tr("debug-stack-title")).size(14).style(primary_style),
                 scrollable(stack_list).height(Length::FillPortion(1)),
                 hsep(),
-                text("Breakpoints").size(14).style(primary_style),
+                text(tr("debug-breakpoints-title")).size(14).style(primary_style),
                 scrollable(bps_list).height(Length::FillPortion(1)),
             ]
             .spacing(4)
@@ -3587,7 +3648,7 @@ fn render_ide_layout<'a>(
 
         let active_card: Element<'a, IdeMessage> = if let Some(enclosing) = active_enclosing_doc {
             let insert_btn = button(
-                text("+ Insert")
+                text(tr("api-btn-insert"))
                     .size(12)
                     .wrapping(iced::widget::text::Wrapping::None),
             )
@@ -3597,7 +3658,7 @@ fn render_ide_layout<'a>(
 
             let mut card_col = column![
                 row![
-                    text(format!("λ Active: {}", enclosing.name))
+                    text(tr_args("api-active-prefix", &[("name", enclosing.name.into())]))
                         .size(15)
                         .wrapping(iced::widget::text::Wrapping::None)
                         .style(primary_style),
@@ -3662,7 +3723,7 @@ fn render_ide_layout<'a>(
                 .into()
         } else {
             container(
-                text("Active Enclosure: (None at cursor)")
+                text(tr("api-active-none"))
                     .size(13)
                     .wrapping(iced::widget::text::Wrapping::None)
                     .style(muted_style),
@@ -3672,7 +3733,8 @@ fn render_ide_layout<'a>(
             .into()
         };
 
-        let search_box = text_input("Search OpenCAD LISP & DXF API...", api_search)
+        let api_search_placeholder = tr("api-search-placeholder");
+        let search_box = text_input(&api_search_placeholder, api_search)
             .on_input(IdeMessage::ApiSearch)
             .size(14)
             .padding([4, 6]);
@@ -3694,7 +3756,7 @@ fn render_ide_layout<'a>(
             }
 
             let insert_btn = button(
-                text("+ Insert")
+                text(tr("api-btn-insert"))
                     .size(12)
                     .wrapping(iced::widget::text::Wrapping::None),
             )
@@ -3773,7 +3835,7 @@ fn render_ide_layout<'a>(
         let drawer_container = container(
             column![
                 row![
-                    text("λ OpenCAD LISP Function List & Reference")
+                    text(tr("api-drawer-title"))
                         .size(15)
                         .wrapping(iced::widget::text::Wrapping::None)
                         .style(primary_style),
@@ -3898,7 +3960,7 @@ fn render_ide_layout<'a>(
             column![
                 button(
                     row![
-                        text("Tutorials").size(13),
+                        text(tr("toolbar-tutorials")).size(13),
                     ]
                     .align_y(iced::Center),
                 )
@@ -4005,13 +4067,20 @@ fn render_save_confirmation_dialog<'a>(
     let title_text = match &prompt.trigger {
         crate::ide::SavePromptTrigger::CloseWindow | crate::ide::SavePromptTrigger::HostClosing => {
             if prompt.dirty_files.len() == 1 {
-                format!("Do you want to save changes to \"{}\"?", prompt.dirty_files[0].1)
+                tr_args(
+                    "save-dialog-prompt-single",
+                    &[("file", prompt.dirty_files[0].1.as_str().into())],
+                )
             } else {
-                format!("Do you want to save changes to {} files before closing?", prompt.dirty_files.len())
+                tr_args(
+                    "save-dialog-prompt-multi",
+                    &[("count", prompt.dirty_files.len().into())],
+                )
             }
         }
         crate::ide::SavePromptTrigger::CloseTab(_) => {
-            format!("Do you want to save changes to \"{}\"?", prompt.dirty_files.first().map(|f| f.1.as_str()).unwrap_or("file"))
+            let fname = prompt.dirty_files.first().map(|f| f.1.as_str()).unwrap_or("file");
+            tr_args("save-dialog-prompt-single", &[("file", fname.into())])
         }
     };
 
@@ -4044,17 +4113,17 @@ fn render_save_confirmation_dialog<'a>(
         ..Default::default()
     });
 
-    let btn_save = button(text("Save").size(12))
+    let btn_save = button(text(tr("save-dialog-btn-save")).size(12))
         .on_press(IdeMessage::ConfirmSaveAndProceed)
         .padding([6, 16])
         .style(button::primary);
 
-    let btn_dont_save = button(text("Don't Save").size(12))
+    let btn_dont_save = button(text(tr("save-dialog-btn-dont-save")).size(12))
         .on_press(IdeMessage::DiscardAndProceed)
         .padding([6, 16])
         .style(button::danger);
 
-    let btn_cancel = button(text("Cancel").size(12))
+    let btn_cancel = button(text(tr("save-dialog-btn-cancel")).size(12))
         .on_press(IdeMessage::CancelSavePrompt)
         .padding([6, 16])
         .style(ide_secondary_button);
@@ -4077,7 +4146,7 @@ fn render_save_confirmation_dialog<'a>(
     let dialog_card = container(
         column![
             row![
-                text("💾 Unsaved Changes").size(15),
+                text(tr("save-dialog-title")).size(15),
                 Space::new().width(Fill),
                 button(text("✕").size(12))
                     .on_press(IdeMessage::CancelSavePrompt)
@@ -4094,7 +4163,7 @@ fn render_save_confirmation_dialog<'a>(
                 }),
             text(title_text).size(13),
             middle_item,
-            text("Your changes will be lost if you don't save them.").size(11).style(muted_style),
+            text(tr("save-dialog-warning")).size(11).style(muted_style),
             Space::new().height(Length::Fixed(6.0)),
             buttons_row,
         ]

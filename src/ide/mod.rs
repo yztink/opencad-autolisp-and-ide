@@ -140,6 +140,8 @@ pub struct IdeSettings {
     pub current_theme: Option<String>,
     #[serde(default)]
     pub format_options: crate::ide::paren::LispFormatOptions,
+    #[serde(default)]
+    pub language: Option<String>,
 }
 
 pub fn default_scripts_dir() -> PathBuf {
@@ -477,6 +479,7 @@ impl Default for IdeSettings {
             user_themes: Vec::new(),
             current_theme: None,
             format_options: crate::ide::paren::LispFormatOptions::default(),
+            language: None,
         }
     }
 }
@@ -925,6 +928,7 @@ pub enum IdeMessage {
     ToggleHelpMenu,
     OpenTutorials,
     SetSettingsTab(SettingsTab),
+    SetLanguage(Option<String>),
     SetEditorFont(Option<String>),
     SetEditorFontSize(u8),
     SetFontSizeInput(String),
@@ -1115,6 +1119,19 @@ mod tests {
         // 4. Non-whole word search for "a" -> should include both 'a's in "a_val" as well
         let m4 = compute_search_matches(code, "a", false, false);
         assert_eq!(m4.len(), 5);
+    }
+
+    #[test]
+    fn test_ide_settings_language_roundtrip_and_default() {
+        let legacy_json = r#"{"transparency_percent": 40}"#;
+        let parsed: IdeSettings = serde_json::from_str(legacy_json).expect("legacy settings deserialize");
+        assert_eq!(parsed.language, None);
+
+        let mut custom = IdeSettings::default();
+        custom.language = Some("es-ES".to_string());
+        let json = serde_json::to_string(&custom).expect("serialize settings");
+        let roundtrip: IdeSettings = serde_json::from_str(&json).expect("deserialize settings");
+        assert_eq!(roundtrip.language.as_deref(), Some("es-ES"));
     }
 }
 }

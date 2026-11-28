@@ -1,3 +1,4 @@
+pub mod i18n;
 pub mod context;
 pub mod interactive;
 pub mod dispatcher;
@@ -43,6 +44,7 @@ impl BuiltinPlugin for OpenCadLispPlugin {
     }
 
     fn ribbon(&self) -> Box<dyn CadModule> {
+        i18n::init_from_host_or_system();
         Box::new(ribbon::OpenCadLispRibbonModule)
     }
 
@@ -91,6 +93,7 @@ impl BuiltinPlugin for OpenCadLispPlugin {
     }
 
     fn on_load(&mut self, host: &mut dyn HostApi) {
+        i18n::init_from_host_or_system();
         let _guard = context::HostGuard::new(host);
         if let Some(sender) = host.plugin_request_sender() {
             context::set_global_sender(Some(std::sync::Arc::from(sender)));
@@ -100,11 +103,14 @@ impl BuiltinPlugin for OpenCadLispPlugin {
         if let Ok(dir) = rust_lisp::ensure_scripts_dir() {
             let scripts = rust_lisp::list_lisp_scripts();
             let loaded = rust_lisp::auto_load_lisp_scripts(host);
-            host.push_info(&format!(
-                "OpenCAD LISP loaded ({} .lsp scripts in {}, {} c:commands registered)",
-                scripts.len(),
-                dir.display(),
-                loaded
+            let dir_str = dir.display().to_string();
+            host.push_info(&i18n::tr_args(
+                "cmd-loaded",
+                &[
+                    ("scripts", scripts.len().into()),
+                    ("dir", dir_str.as_str().into()),
+                    ("commands", loaded.into()),
+                ],
             ));
         }
     }

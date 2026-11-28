@@ -472,15 +472,17 @@ impl IdeApp {
     }
 
     pub fn new() -> (Self, Task<IdeMessage>) {
+        let settings = IdeSettings::load();
+        crate::i18n::init_for_ide(settings.language.as_deref());
+
         let (client, rx) = IdeClient::new();
         let initial_tab = IdeTab::new_empty("untitled.lsp".to_string());
-        let welcome_text = "=== OpenCAD LISP IDE (OCIDE) ===\nType OpenCAD LISP code above and click 'Load Script' (F5) or 'Load Selection' (F8).\nUse the REPL input line below for interactive OpenCAD LISP evaluation.\n";
-        let mut console_log = text_editor::Content::with_text(welcome_text);
+        let welcome_text = format!("{}\n", crate::i18n::tr("ide-welcome"));
+        let mut console_log = text_editor::Content::with_text(&welcome_text);
         console_log.perform(text_editor::Action::Move(text_editor::Motion::DocumentEnd));
         let line_count = console_log.line_count() as i32;
         console_log.perform(text_editor::Action::Scroll { lines: line_count });
 
-        let settings = IdeSettings::load();
         let active_color_target = SyntaxColorTarget::Background;
         let syntax_hex_input = color_to_hex(settings.get_target_color(active_color_target));
         let font_size_input = settings.font_size().to_string();
@@ -546,7 +548,7 @@ impl IdeApp {
                 format!("{}{}", dot, t.title)
             })
             .unwrap_or_else(|| "OCIDE".to_string());
-        format!("OpenCAD LISP IDE (OCIDE) - {active_title}")
+        crate::i18n::tr_args("ide-window-title", &[("tab", active_title.as_str().into())])
     }
 
     pub fn update(&mut self, message: IdeMessage) -> Task<IdeMessage> {
@@ -653,9 +655,26 @@ impl IdeApp {
                                 }
 
                                 if expr_preview.is_empty() {
-                                    self.append_to_console(&format!("[DEBUG] Paused at {filename}:{line}:{col}\n"));
+                                    let msg = crate::i18n::tr_args(
+                                        "console-debug-paused",
+                                        &[
+                                            ("file", filename.as_str().into()),
+                                            ("line", line.into()),
+                                            ("col", col.into()),
+                                        ],
+                                    );
+                                    self.append_to_console(&format!("{msg}\n"));
                                 } else {
-                                    self.append_to_console(&format!("[DEBUG] Paused at {filename}:{line}:{col} -> {expr_preview}\n"));
+                                    let msg = crate::i18n::tr_args(
+                                        "console-debug-paused-expr",
+                                        &[
+                                            ("file", filename.as_str().into()),
+                                            ("line", line.into()),
+                                            ("col", col.into()),
+                                            ("expr", expr_preview.as_str().into()),
+                                        ],
+                                    );
+                                    self.append_to_console(&format!("{msg}\n"));
                                 }
 
                                 #[cfg(windows)]
@@ -679,7 +698,7 @@ impl IdeApp {
                                     tab.debug_paused_span = None;
                                     tab.debug_paused_expr = None;
                                 }
-                                self.append_to_console("[DEBUG] Execution finished.\n");
+                                self.append_to_console(&format!("{}\n", crate::i18n::tr("console-debug-finished")));
                             }
                             DebugEvent::Error(err) => {
                                 self.is_debugging = false;
@@ -688,13 +707,22 @@ impl IdeApp {
                                     tab.debug_paused_span = None;
                                     tab.debug_paused_expr = None;
                                 }
-                                self.append_to_console(&format!("[DEBUG ERROR] {err}\n"));
+                                let msg = crate::i18n::tr_args("console-debug-error", &[("error", err.as_str().into())]);
+                                self.append_to_console(&format!("{msg}\n"));
                             }
                         }
                     }
                     PluginToIde::SelectionChanged { handles } => {
                         if !handles.is_empty() {
-                            self.append_to_console(&format!("[CAD Selection] {} entities selected: {:?}\n", handles.len(), handles));
+                            let handles_str = format!("{handles:?}");
+                            let msg = crate::i18n::tr_args(
+                                "console-cad-selection",
+                                &[
+                                    ("count", handles.len().into()),
+                                    ("handles", handles_str.as_str().into()),
+                                ],
+                            );
+                            self.append_to_console(&format!("{msg}\n"));
                         }
                     }
                     PluginToIde::HostClosing => {
@@ -766,12 +794,14 @@ impl IdeApp {
             }
             IdeMessage::OpenFile => {
                 let start_dir = self.settings.resolved_scripts_dir();
+                let filter_lisp = crate::i18n::tr("dialog-filter-lisp");
+                let filter_all = crate::i18n::tr("dialog-filter-all");
                 Task::perform(
                     async move {
                         let file = rfd::AsyncFileDialog::new()
                             .set_directory(&start_dir)
-                            .add_filter("OpenCAD LISP Routine (*.lsp, *.lisp)", &["lsp", "lisp"])
-                            .add_filter("All Files (*.*)", &["*"])
+                            .add_filter(&filter_lisp, &["lsp", "lisp"])
+                            .add_filter(&filter_all, &["*"])
                             .pick_file()
                             .await;
                         if let Some(f) = file {
@@ -802,7 +832,9 @@ impl IdeApp {
                     });
                     self.tabs.push(tab);
                     self.active_tab = self.tabs.len() - 1;
-                    self.append_to_console(&format!("[IDE] Opened {}\n", path.display()));
+                    let path_str = path.display().to_string();
+                    let msg = crate::i18n::tr_args("console-ide-opened", &[("path", path_str.as_str().into())]);
+                    self.append_to_console(&format!("{msg}\n"));
                 }
                 Task::none()
             }
@@ -824,7 +856,8 @@ impl IdeApp {
                     }
                 }
                 if let Some(title) = saved_title {
-                    self.append_to_console(&format!("[IDE] Saved {title}\n"));
+                    let msg = crate::i18n::tr_args("console-ide-saved", &[("file", title.as_str().into())]);
+                    self.append_to_console(&format!("{msg}\n"));
                 }
                 Task::none()
             }
@@ -845,13 +878,15 @@ impl IdeApp {
                         (dir, name)
                     };
                     let _ = std::fs::create_dir_all(&start_dir);
+                    let filter_lisp = crate::i18n::tr("dialog-filter-lisp");
+                    let filter_all = crate::i18n::tr("dialog-filter-all");
                     Task::perform(
                         async move {
                             let file = rfd::AsyncFileDialog::new()
                                 .set_directory(&start_dir)
                                 .set_file_name(&file_name)
-                                .add_filter("OpenCAD LISP Routine (*.lsp, *.lisp)", &["lsp", "lisp"])
-                                .add_filter("All Files (*.*)", &["*"])
+                                .add_filter(&filter_lisp, &["lsp", "lisp"])
+                                .add_filter(&filter_all, &["*"])
                                 .save_file()
                                 .await;
                             file.map(|f| (active_idx, f.path().to_path_buf()))
@@ -871,7 +906,8 @@ impl IdeApp {
                             tab.title = fname.clone();
                             tab.path = Some(path);
                             tab.dirty = false;
-                            self.append_to_console(&format!("[IDE] Saved {fname}\n"));
+                            let msg = crate::i18n::tr_args("console-ide-saved", &[("file", fname.as_str().into())]);
+                            self.append_to_console(&format!("{msg}\n"));
                         }
                     }
                 }
@@ -1196,7 +1232,8 @@ impl IdeApp {
                     crate::ide::protocol::ReplMode::Python => "Python",
                     crate::ide::protocol::ReplMode::Lisp => "OpenCAD LISP",
                 };
-                self.append_to_console(&format!("[REPL mode switched to {mode_str}]\n"));
+                let msg = crate::i18n::tr_args("console-repl-mode-switched", &[("mode", mode_str.into())]);
+                self.append_to_console(&format!("{msg}\n"));
                 Task::none()
             }
             IdeMessage::SetReplMode(mode) => {
@@ -1205,11 +1242,12 @@ impl IdeApp {
                     crate::ide::protocol::ReplMode::Python => "Python",
                     crate::ide::protocol::ReplMode::Lisp => "OpenCAD LISP",
                 };
-                self.append_to_console(&format!("[REPL mode switched to {mode_str}]\n"));
+                let msg = crate::i18n::tr_args("console-repl-mode-switched", &[("mode", mode_str.into())]);
+                self.append_to_console(&format!("{msg}\n"));
                 Task::none()
             }
             IdeMessage::ClearConsole => {
-                self.set_console_text("=== Console Cleared ===\n");
+                self.set_console_text(&format!("{}\n", crate::i18n::tr("console-cleared")));
                 Task::none()
             }
             IdeMessage::SelectMatchingParen { forward: _ } => {
@@ -1613,7 +1651,8 @@ impl IdeApp {
 
                 if let Some((code, title, bps, is_lisp)) = to_run {
                     if !title.starts_with("untitled") {
-                        self.append_to_console(&format!("\n--- Loading Script: {title} ---\n"));
+                        let msg = crate::i18n::tr_args("console-loading-script", &[("file", title.as_str().into())]);
+                        self.append_to_console(&format!("\n{msg}\n"));
                     }
 
                     self.client.send(IdeToPlugin::SyncBreakpoints {
@@ -1829,15 +1868,30 @@ impl IdeApp {
                 self.help_menu_open = false;
                 if let Some(path) = find_tutorials_index() {
                     if let Err(err) = open_in_browser(&path) {
-                        self.append_to_console(&format!("Failed to open tutorials ({}): {err}\n", path.display()));
+                        let path_str = path.display().to_string();
+                        let err_str = err.to_string();
+                        let msg = crate::i18n::tr_args(
+                            "console-tutorials-open-failed",
+                            &[
+                                ("path", path_str.as_str().into()),
+                                ("error", err_str.as_str().into()),
+                            ],
+                        );
+                        self.append_to_console(&format!("{msg}\n"));
                     }
                 } else {
-                    self.append_to_console("Tutorials index.html not found.\n");
+                    self.append_to_console(&format!("{}\n", crate::i18n::tr("console-tutorials-not-found")));
                 }
                 Task::none()
             }
             IdeMessage::SetSettingsTab(tab) => {
                 self.settings_tab = tab;
+                Task::none()
+            }
+            IdeMessage::SetLanguage(lang_opt) => {
+                self.settings.language = lang_opt;
+                self.settings.save();
+                let _ = crate::i18n::set_language(self.settings.language.as_deref());
                 Task::none()
             }
             IdeMessage::SetFormatIndentSize(size) => {

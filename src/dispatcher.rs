@@ -82,7 +82,7 @@ pub fn dispatch_command(host: &mut dyn HostApi, cmd: &str) -> bool {
     match primary.as_str() {
         "LSPRUN" | "LISPRUN" => {
             if rest.is_empty() {
-                host.push_error("Usage: LSPRUN <lisp_code> or (command ...)");
+                host.push_error(&crate::i18n::tr("cmd-usage-lsprun"));
                 return true;
             }
             set_last_dispatched_command(Some(trimmed.to_string()));
@@ -96,7 +96,7 @@ pub fn dispatch_command(host: &mut dyn HostApi, cmd: &str) -> bool {
                     host.start_interactive(Box::new(crate::appload::ApploadCommand::new()));
                     return true;
                 }
-                host.push_info("Usage: LSP <script_name_or_file> or APPLOAD [<path>]");
+                host.push_info(&crate::i18n::tr("cmd-usage-lsp"));
                 return true;
             }
             set_last_dispatched_command(Some(trimmed.to_string()));
@@ -108,7 +108,7 @@ pub fn dispatch_command(host: &mut dyn HostApi, cmd: &str) -> bool {
             true
         }
         "OCIDE" => {
-            host.push_info("Opening OpenCAD LISP IDE (OCIDE)...");
+            host.push_info(&crate::i18n::tr("cmd-opening-ide"));
             launch_ide();
             true
         }
@@ -118,16 +118,26 @@ pub fn dispatch_command(host: &mut dyn HostApi, cmd: &str) -> bool {
             let cmds = crate::rust_lisp::get_registered_lisp_commands_for_tab(host.tab_id());
 
             if !cmds.is_empty() {
-                host.push_info(&format!("Registered OpenCAD LISP commands ({}):", cmds.len()));
+                host.push_info(&crate::i18n::tr_args(
+                    "cmd-registered-commands",
+                    &[("count", cmds.len().into())],
+                ));
                 for name in cmds {
                     host.push_output(&format!("  • {}", name));
                 }
             }
 
             if scripts.is_empty() {
-                host.push_info(&format!("No OpenCAD LISP (.lsp) files found in {}", dir.display()));
+                let dir_str = dir.display().to_string();
+                host.push_info(&crate::i18n::tr_args(
+                    "cmd-no-scripts-found",
+                    &[("dir", dir_str.as_str().into())],
+                ));
             } else {
-                host.push_info(&format!("Available OpenCAD LISP (.lsp) files ({}):", scripts.len()));
+                host.push_info(&crate::i18n::tr_args(
+                    "cmd-available-scripts",
+                    &[("count", scripts.len().into())],
+                ));
                 for s in scripts {
                     host.push_output(&format!("  • LSP {s}.lsp"));
                 }
@@ -139,37 +149,49 @@ pub fn dispatch_command(host: &mut dyn HostApi, cmd: &str) -> bool {
                 Ok(dir) => {
                     let scripts = crate::rust_lisp::list_lisp_scripts();
                     let loaded = crate::rust_lisp::auto_load_lisp_scripts(host);
-                    host.push_info(&format!(
-                        "OpenCAD LISP runner reloaded: {} .lsp scripts in {}, {} new c:commands registered",
-                        scripts.len(),
-                        dir.display(),
-                        loaded
+                    let dir_str = dir.display().to_string();
+                    host.push_info(&crate::i18n::tr_args(
+                        "cmd-reloaded",
+                        &[
+                            ("scripts", scripts.len().into()),
+                            ("dir", dir_str.as_str().into()),
+                            ("commands", loaded.into()),
+                        ],
                     ));
                 }
                 Err(e) => {
-                    host.push_error(&format!("Failed to reload scripts directory: {}", e));
+                    let err_str = e.to_string();
+                    host.push_error(&crate::i18n::tr_args(
+                        "cmd-reload-failed",
+                        &[("error", err_str.as_str().into())],
+                    ));
                 }
             }
             true
         }
         "LSPDIR" | "PYDIR" => {
             let dir = crate::rust_lisp::scripts_dir();
-            host.push_info(&format!("Scripts directory: {}", dir.display()));
+            let dir_str = dir.display().to_string();
+            host.push_info(&crate::i18n::tr_args(
+                "cmd-scripts-dir",
+                &[("dir", dir_str.as_str().into())],
+            ));
             true
         }
         "LSPERR" | "LISPERR" => {
             if let Some(err) = crate::rust_lisp::get_last_lisp_error() {
+                let title = crate::i18n::tr("cmd-last-error-title");
                 if crate::ide::server::has_active_clients() {
-                    crate::ide::server::ide_log(&format!("\n[Last OpenCAD LISP Error] {err}\n"), true);
+                    crate::ide::server::ide_log(&format!("\n[{title}] {err}\n"), true);
                 }
-                crate::rust_lisp::push_formatted_error(host, "Last OpenCAD LISP Error", &err);
+                crate::rust_lisp::push_formatted_error(host, &title, &err);
             } else {
-                host.push_info("No OpenCAD LISP errors recorded in this session.");
+                host.push_info(&crate::i18n::tr("cmd-no-errors"));
             }
             true
         }
         "PY" | "PYRUN" | "PYLOAD" | "PYCMD" | "PYDEBUG" | "PYDEBUG_CMD" | "PYTRUST" | "PYUNTRUST" | "PYTRUST_LIST" | "PYSECURITY" => {
-            host.push_info("Python support is currently shelved. Use OpenCAD LISP (LSP, APPLOAD, LSPRUN, or direct S-expressions).");
+            host.push_info(&crate::i18n::tr("cmd-python-shelved"));
             true
         }
         _ => {
@@ -210,19 +232,22 @@ pub fn launch_ide() {
     exe_candidates.push(std::path::PathBuf::from("opencad_lisp_ide.exe"));
     exe_candidates.push(std::path::PathBuf::from("opencad_lisp_ide"));
 
+    let host_lang = ocs_plugin_api::host_language();
+    let spawn_with_lang = |mut cmd: std::process::Command| {
+        cmd.stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null());
+        if let Some(ref lang) = host_lang {
+            cmd.env(ocs_plugin_api::HOST_LANGUAGE_ENV, lang);
+        }
+        let _ = cmd.spawn();
+    };
+
     for candidate in exe_candidates {
         if candidate.exists() {
-            let _ = std::process::Command::new(candidate)
-                .stdin(std::process::Stdio::null())
-                .stdout(std::process::Stdio::null())
-                .stderr(std::process::Stdio::null())
-                .spawn();
+            spawn_with_lang(std::process::Command::new(candidate));
             return;
         }
     }
-    let _ = std::process::Command::new("opencad_lisp_ide")
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn();
+    spawn_with_lang(std::process::Command::new("opencad_lisp_ide"));
 }
